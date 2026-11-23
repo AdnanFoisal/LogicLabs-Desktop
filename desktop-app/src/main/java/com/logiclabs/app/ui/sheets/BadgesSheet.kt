@@ -3,16 +3,18 @@ package com.logiclabs.app.ui.sheets
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -26,8 +28,10 @@ import androidx.compose.ui.unit.dp
 import com.logiclabs.core.data.progress.BadgeCatalog
 import com.logiclabs.core.data.progress.BenchStats
 import com.logiclabs.core.designsystem.component.DesktopModalDialog
+import com.logiclabs.core.designsystem.component.DesktopVerticalScrollbar
 import com.logiclabs.core.designsystem.component.LogicIcons
 import com.logiclabs.core.designsystem.component.SheetScaffold
+import com.logiclabs.core.designsystem.component.keyboardPageScroll
 import com.logiclabs.core.designsystem.theme.AmberCore
 import com.logiclabs.core.designsystem.theme.ChassisBase
 import com.logiclabs.core.designsystem.theme.Dimens
@@ -46,6 +50,7 @@ fun BadgesSheet(
 ) {
     val badges = BadgeCatalog.derive(stats, classicLabCount)
     val earnedCount = badges.count { it.second }
+    val listState = rememberLazyListState()
 
     DesktopModalDialog(
         onDismissRequest = onDismiss,
@@ -58,15 +63,29 @@ fun BadgesSheet(
             titleIcon = LogicIcons.Rosette,
             onDismiss = onDismiss
         ) {
-            LazyColumn(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 480.dp),
-                verticalArrangement = Arrangement.spacedBy(Dimens.Space2)
+                    .weight(1f, fill = false)
+                    .keyboardPageScroll(listState)
             ) {
-                items(badges, key = { it.first.id }) { (badge, earned) ->
-                    BadgeRow(title = badge.title, description = badge.description, earned = earned)
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(end = Dimens.Space3),
+                    verticalArrangement = Arrangement.spacedBy(Dimens.Space2)
+                ) {
+                    items(badges, key = { it.first.id }) { (badge, earned) ->
+                        BadgeRow(title = badge.title, description = badge.description, earned = earned)
+                    }
                 }
+                DesktopVerticalScrollbar(
+                    listState = listState,
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .fillMaxHeight()
+                )
             }
         }
     }

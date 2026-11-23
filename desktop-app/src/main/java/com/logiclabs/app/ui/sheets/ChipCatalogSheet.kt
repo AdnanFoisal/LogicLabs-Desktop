@@ -8,9 +8,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -40,9 +40,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.logiclabs.core.bridge.catalog.TTLChipCatalog
 import com.logiclabs.core.designsystem.component.DesktopModalDialog
+import com.logiclabs.core.designsystem.component.DesktopTooltip
+import com.logiclabs.core.designsystem.component.DesktopVerticalScrollbar
 import com.logiclabs.core.designsystem.component.InstantSearchBar
 import com.logiclabs.core.designsystem.component.LogicIcons
 import com.logiclabs.core.designsystem.component.SheetScaffold
+import com.logiclabs.core.designsystem.component.desktopPointerHand
+import com.logiclabs.core.designsystem.component.keyboardPageScroll
 import com.logiclabs.core.designsystem.theme.AccentCyan
 import com.logiclabs.core.designsystem.theme.Dimens
 import com.logiclabs.core.designsystem.theme.GlassHairline
@@ -53,8 +57,8 @@ import com.logiclabs.core.designsystem.theme.TextPrimary
 import com.logiclabs.core.designsystem.theme.TextTertiary
 
 /**
- * Desktop TTL 74xx IC Catalog with auto-focused search and keyboard selection
- * (Up/Down arrows to select, Enter to place on the breadboard, Esc to dismiss).
+ * Desktop TTL 74xx IC Catalog with auto-focused search, visible scrollbar, and keyboard selection
+ * (Up/Down/PgUp/PgDn to navigate, Enter to place on the breadboard, Esc to dismiss).
  */
 @Composable
 fun ChipCatalogSheet(
@@ -74,8 +78,9 @@ fun ChipCatalogSheet(
         } else {
             val q = searchQuery.trim().lowercase()
             parts.filter { part ->
+                val info = TTLChipCatalog.getInfo(part)
                 part.lowercase().contains(q) ||
-                    (TTLChipCatalog.getInfo(part)?.description?.lowercase()?.contains(q) == true)
+                    (info?.description?.lowercase()?.contains(q) == true)
             }
         }
     }
@@ -96,7 +101,7 @@ fun ChipCatalogSheet(
 
     DesktopModalDialog(
         onDismissRequest = onDismiss,
-        maxWidth = 640.dp,
+        maxWidth = 660.dp,
         maxHeight = 640.dp
     ) {
         Box(
@@ -155,35 +160,49 @@ fun ChipCatalogSheet(
                 )
                 Spacer(Modifier.height(Dimens.Space2))
 
-                LazyColumn(
-                    state = listState,
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 460.dp),
-                    verticalArrangement = Arrangement.spacedBy(Dimens.Space2)
+                        .weight(1f, fill = false)
+                        .keyboardPageScroll(listState)
                 ) {
-                    if (filteredParts.isEmpty()) {
-                        item {
-                            Text(
-                                text = "No ICs matching \"$searchQuery\"",
-                                style = LogicLabsType.BodySm,
-                                color = TextTertiary,
-                                modifier = Modifier.padding(vertical = Dimens.Space3)
-                            )
-                        }
-                    } else {
-                        itemsIndexed(filteredParts, key = { _, p -> p }) { index, part ->
-                            val info = TTLChipCatalog.getInfo(part)
-                            PartRow(
-                                part = part,
-                                description = info?.description ?: "",
-                                pinCount = info?.pinCount ?: 14,
-                                highlighted = index == highlightedIndex,
-                                onClick = { onPick(part) },
-                                onInfoClick = { inspectingPart = part }
-                            )
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(end = Dimens.Space3),
+                        verticalArrangement = Arrangement.spacedBy(Dimens.Space2)
+                    ) {
+                        if (filteredParts.isEmpty()) {
+                            item {
+                                Text(
+                                    text = "No ICs matching \"$searchQuery\"",
+                                    style = LogicLabsType.BodySm,
+                                    color = TextTertiary,
+                                    modifier = Modifier.padding(vertical = Dimens.Space3)
+                                )
+                            }
+                        } else {
+                            itemsIndexed(filteredParts, key = { _, p -> p }) { index, part ->
+                                val info = TTLChipCatalog.getInfo(part)
+                                PartRow(
+                                    part = part,
+                                    description = info?.description ?: "",
+                                    pinCount = info?.pinCount ?: 14,
+                                    highlighted = index == highlightedIndex,
+                                    onClick = { onPick(part) },
+                                    onInfoClick = { inspectingPart = part }
+                                )
+                            }
                         }
                     }
+
+                    DesktopVerticalScrollbar(
+                        listState = listState,
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .fillMaxHeight()
+                    )
                 }
             }
         }
@@ -216,6 +235,7 @@ private fun PartRow(
                 color = if (highlighted) AccentCyan else GlassHairline,
                 shape = RoundedCornerShape(Dimens.RadiusMd)
             )
+            .desktopPointerHand()
             .clickable(onClick = onClick)
             .padding(horizontal = Dimens.Space3, vertical = Dimens.Space2),
         verticalAlignment = Alignment.CenterVertically
@@ -253,21 +273,24 @@ private fun PartRow(
             )
         }
 
-        Box(
-            modifier = Modifier
-                .padding(start = Dimens.Space2)
-                .size(30.dp)
-                .clip(RoundedCornerShape(Dimens.RadiusSm))
-                .border(Dimens.Hairline, AccentCyan.copy(alpha = 0.45f), RoundedCornerShape(Dimens.RadiusSm))
-                .clickable(onClick = onInfoClick),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = LogicIcons.Info,
-                contentDescription = "Pinout info for $part",
-                tint = AccentCyan,
-                modifier = Modifier.size(16.dp)
-            )
+        DesktopTooltip(text = "Inspect $part pinout & gates") {
+            Box(
+                modifier = Modifier
+                    .padding(start = Dimens.Space2)
+                    .size(30.dp)
+                    .clip(RoundedCornerShape(Dimens.RadiusSm))
+                    .border(Dimens.Hairline, AccentCyan.copy(alpha = 0.45f), RoundedCornerShape(Dimens.RadiusSm))
+                    .desktopPointerHand()
+                    .clickable(onClick = onInfoClick),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = LogicIcons.Info,
+                    contentDescription = "Pinout info for $part",
+                    tint = AccentCyan,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
         }
     }
 }

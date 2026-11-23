@@ -96,6 +96,7 @@ import com.logiclabs.core.data.persistence.ProjectPersistence
 import com.logiclabs.core.data.progress.Badge
 import com.logiclabs.core.data.session.SessionKind
 import com.logiclabs.core.data.settings.Settings
+import com.logiclabs.core.designsystem.component.DesktopVerticalScrollbar
 import com.logiclabs.core.designsystem.component.LogicIcons
 import com.logiclabs.core.designsystem.theme.AccentCyan
 import com.logiclabs.core.designsystem.theme.AmberCore
@@ -1154,7 +1155,7 @@ fun LogicLabsMainScreen(
                     )
 
                     if (!consoleCollapsed) {
-                        // Draggable vertical splitter bar
+                        // Draggable vertical splitter bar — visible crisp dividers on both dark and light Cleanroom themes
                         Box(
                             modifier = Modifier
                                 .width(8.dp)
@@ -1172,10 +1173,24 @@ fun LogicLabsMainScreen(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .width(2.dp)
-                                    .height(44.dp)
-                                    .clip(RoundedCornerShape(1.dp))
+                                    .align(Alignment.CenterStart)
+                                    .width(1.dp)
+                                    .fillMaxHeight()
                                     .background(SurfaceCardBorder)
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.CenterEnd)
+                                    .width(1.dp)
+                                    .fillMaxHeight()
+                                    .background(SurfaceCardBorder)
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .width(3.dp)
+                                    .height(48.dp)
+                                    .clip(RoundedCornerShape(2.dp))
+                                    .background(TextSecondary.copy(alpha = 0.55f))
                             )
                         }
 
@@ -1533,6 +1548,7 @@ private fun ShareCircuitDialog(
         message = "Compact bytecode representing all chips, wires, and console states on this breadboard.",
         content = {
             Spacer(Modifier.height(Dimens.Space3))
+            val codeScroll = rememberScrollState()
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1540,13 +1556,25 @@ private fun ShareCircuitDialog(
                     .clip(RoundedCornerShape(Dimens.RadiusSm))
                     .background(SurfaceCard)
                     .border(Dimens.Hairline, SurfaceCardBorder, RoundedCornerShape(Dimens.RadiusSm))
-                    .padding(Dimens.Space3)
-                    .verticalScroll(rememberScrollState())
             ) {
-                Text(
-                    text = code,
-                    style = LogicLabsType.TechnicalXs.copy(fontFamily = FontFamily.Monospace),
-                    color = AccentCyan
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(codeScroll)
+                        .padding(start = Dimens.Space3, end = Dimens.Space4, top = Dimens.Space3, bottom = Dimens.Space3)
+                ) {
+                    Text(
+                        text = code,
+                        style = LogicLabsType.TechnicalXs.copy(fontFamily = FontFamily.Monospace),
+                        color = AccentCyan
+                    )
+                }
+                DesktopVerticalScrollbar(
+                    scrollState = codeScroll,
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .fillMaxHeight()
+                        .padding(2.dp)
                 )
             }
         },

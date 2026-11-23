@@ -7,6 +7,9 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import javax.sound.sampled.AudioFormat
 import javax.sound.sampled.AudioSystem
 import javax.sound.sampled.Clip
@@ -22,34 +25,108 @@ import kotlin.random.Random
  *
  * Uses the exact same procedural PCM16 waveforms as Logic Labs Android (switch click, relay
  * power thud, and socket tick) with zero external audio assets and zero native dependencies.
- * Gracefully degrades to silence on headless machines or when no audio output device exists.
+ *
+ * All audio device initialization and Clip playback runs asynchronously on a dedicated single
+ * daemon thread with atomic event coalescing so PulseAudio/ALSA/WASAPI mixer locks can NEVER
+ * stall the Compose UI thread during clicks, tab switches, or breadboard selection.
  */
 class ConsoleSfx {
 
     @Volatile
     var muted: Boolean = false
 
-    private val clickClip: Clip? = buildClip(synthClick())
-    private val popClip: Clip? = buildClip(synthPop())
-    private val tickClip: Clip? = buildClip(synthTick())
+    private val released = AtomicBoolean(false)
+    private val pendingKind = AtomicInteger(KIND_NONE)
+    private val workerScheduled = AtomicBoolean(false)
 
-    /** Toggle switch: ~5 ms broadband noise burst plus a 1.2 kHz exponentially decaying tone. */
-    fun click() = play(clickClip)
+    // Lazily opened on the audio worker thread so startup and first Compose frame never block.
+    private var initialized = false
+    private var clickClip: Clip? = null
+    private var popClip: Clip? = null
+    private var tickClip: Clip? = null
 
-    /** Relay / power contactor: ~12 ms low-frequency thud. */
-    fun pop() = play(popClip)
-
-    /** Tie-point selection: very short, soft tick. */
-    fun tick() = play(tickClip)
-
-    fun release() {
-        releaseClip(clickClip)
-        releaseClip(popClip)
-        releaseClip(tickClip)
+    private val executor = Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "logiclabs-sfx").apply {
+            isDaemon = true
+            priority = Thread.NORM_PRIORITY - 1
+        }
     }
 
-    private fun play(clip: Clip?) {
-        if (muted || clip == null) return
+    /** Toggle switch: ~5 ms broadband noise burst plus a 1.2 kHz exponentially decaying tone. */
+    fun click() = enqueue(KIND_CLICK)
+
+    /** Relay / power contactor: ~12 ms low-frequency thud. */
+    fun pop() = enqueue(KIND_POP)
+
+    /** Tie-point selection: very short, soft tick. */
+    fun tick() = enqueue(KIND_TICK)
+
+    fun release() {
+        if (!released.compareAndSet(false, true)) return
+        pendingKind.set(KIND_NONE)
+        runCatching {
+            executor.execute {
+                releaseClip(clickClip)
+                releaseClip(popClip)
+                releaseClip(tickClip)
+                clickClip = null
+                popClip = null
+                tickClip = null
+            }
+        }
+        executor.shutdown()
+    }
+
+    private fun enqueue(kind: Int) {
+        if (muted || released.get()) return
+        // Coalesce rapid clicks so queued audio never builds lag behind user input.
+        pendingKind.set(kind)
+        if (workerScheduled.compareAndSet(false, true)) {
+            runCatching {
+                executor.execute(::drainQueue)
+            }.onFailure {
+                workerScheduled.set(false)
+            }
+        }
+    }
+
+    private fun drainQueue() {
+        try {
+            while (!released.get()) {
+                val kind = pendingKind.getAndSet(KIND_NONE)
+                if (kind == KIND_NONE) break
+                if (muted) continue
+                ensureInitialized()
+                val clip = when (kind) {
+                    KIND_CLICK -> clickClip
+                    KIND_POP -> popClip
+                    KIND_TICK -> tickClip
+                    else -> null
+                }
+                playOnAudioThread(clip)
+            }
+        } finally {
+            workerScheduled.set(false)
+            // Guard against the tiny race where another click arrived right before flag reset.
+            if (!released.get() && !muted && pendingKind.get() != KIND_NONE) {
+                if (workerScheduled.compareAndSet(false, true)) {
+                    runCatching { executor.execute(::drainQueue) }
+                        .onFailure { workerScheduled.set(false) }
+                }
+            }
+        }
+    }
+
+    private fun ensureInitialized() {
+        if (initialized || released.get()) return
+        initialized = true
+        clickClip = buildClip(synthClick())
+        popClip = buildClip(synthPop())
+        tickClip = buildClip(synthTick())
+    }
+
+    private fun playOnAudioThread(clip: Clip?) {
+        if (muted || clip == null || released.get()) return
         try {
             if (clip.isRunning) clip.stop()
             clip.framePosition = 0
@@ -101,6 +178,11 @@ class ConsoleSfx {
     companion object {
         const val SAMPLE_RATE = 22050
         private const val TWO_PI = (2.0 * PI).toFloat()
+
+        private const val KIND_NONE = 0
+        private const val KIND_CLICK = 1
+        private const val KIND_POP = 2
+        private const val KIND_TICK = 3
 
         fun synthClick(): ShortArray {
             val burst = ms(5)

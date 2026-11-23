@@ -10,11 +10,13 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -42,9 +44,12 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.logiclabs.core.designsystem.component.DesktopModalDialog
+import com.logiclabs.core.designsystem.component.DesktopVerticalScrollbar
 import com.logiclabs.core.designsystem.component.InstantSearchBar
 import com.logiclabs.core.designsystem.component.LogicIcons
 import com.logiclabs.core.designsystem.component.SheetScaffold
+import com.logiclabs.core.designsystem.component.desktopPointerHand
+import com.logiclabs.core.designsystem.component.keyboardPageScroll
 import com.logiclabs.core.designsystem.theme.AccentCyan
 import com.logiclabs.core.designsystem.theme.AmberCore
 import com.logiclabs.core.designsystem.theme.Dimens
@@ -166,32 +171,46 @@ fun LabCatalogSheet(
                 )
                 Spacer(Modifier.height(Dimens.Space2))
 
-                LazyColumn(
-                    state = listState,
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 520.dp),
-                    verticalArrangement = Arrangement.spacedBy(Dimens.Space3)
+                        .weight(1f, fill = false)
+                        .keyboardPageScroll(listState)
                 ) {
-                    if (filteredGroups.isEmpty()) {
-                        item {
-                            Text(
-                                text = "No experiments matching \"$searchQuery\"",
-                                style = LogicLabsType.BodySm,
-                                color = TextSecondary,
-                                modifier = Modifier.padding(vertical = Dimens.Space3)
-                            )
-                        }
-                    } else {
-                        itemsIndexed(filteredGroups, key = { _, g -> g.key }) { index, group ->
-                            ExperimentCard(
-                                group = group,
-                                activeLabId = activeLabId,
-                                isKeyboardFocused = index == highlightedIndex,
-                                onLoadLab = onLoadLab
-                            )
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(end = Dimens.Space3),
+                        verticalArrangement = Arrangement.spacedBy(Dimens.Space2)
+                    ) {
+                        if (filteredGroups.isEmpty()) {
+                            item {
+                                Text(
+                                    text = "No experiments matching \"$searchQuery\"",
+                                    style = LogicLabsType.BodySm,
+                                    color = TextSecondary,
+                                    modifier = Modifier.padding(vertical = Dimens.Space3)
+                                )
+                            }
+                        } else {
+                            itemsIndexed(filteredGroups, key = { _, g -> g.key }) { index, group ->
+                                ExperimentCard(
+                                    group = group,
+                                    activeLabId = activeLabId,
+                                    isKeyboardFocused = index == highlightedIndex,
+                                    onLoadLab = onLoadLab
+                                )
+                            }
                         }
                     }
+
+                    DesktopVerticalScrollbar(
+                        listState = listState,
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .fillMaxHeight()
+                    )
                 }
             }
         }
@@ -252,33 +271,35 @@ private fun LabCard(
                 color = if (highlighted) AccentCyan else GlassHairline,
                 shape = RoundedCornerShape(Dimens.RadiusLg)
             )
-            .padding(Dimens.Space3)
+            .padding(horizontal = Dimens.Space3, vertical = Dimens.Space2)
     ) {
-        Text(
-            text = "LAB ${lab.labNumber}: ${lab.title}",
-            style = LogicLabsType.TitleSm,
-            color = AmberCore,
-            // Bounded, so a long title wraps to a second line and stops. It can no
-            // longer over-commit the row and starve a sibling into a 1ch column.
-            maxLines = 2,
-            softWrap = true,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(Modifier.height(Dimens.Space1))
-
-        Text(
-            text = lab.subtitle,
-            style = LogicLabsType.TechnicalSm,
-            color = AccentCyan,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.fillMaxWidth()
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Dimens.Space2)
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "LAB ${lab.labNumber}: ${lab.title}",
+                    style = LogicLabsType.TitleSm,
+                    color = AmberCore,
+                    maxLines = 2,
+                    softWrap = true,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = lab.subtitle,
+                    style = LogicLabsType.TechnicalSm,
+                    color = AccentCyan,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            LoadButton(isActive = isActive, onClick = onLoad)
+        }
 
         if (variations.size > 1) {
-            Spacer(Modifier.height(Dimens.Space2))
+            Spacer(Modifier.height(Dimens.Space1))
             VariationPicker(
                 variations = variations,
                 selected = selectedVariation,
@@ -286,19 +307,19 @@ private fun LabCard(
             )
         }
 
-        Spacer(Modifier.height(Dimens.Space2))
+        Spacer(Modifier.height(Dimens.Space1))
 
         Text(
             text = lab.description,
             style = LogicLabsType.BodySm,
             color = TextPrimary,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.fillMaxWidth()
         )
 
         Spacer(Modifier.height(Dimens.Space2))
 
-        // FlowRow, not Row: badges keep their intrinsic width and the IN: descriptor
-        // moves to the next line rather than being compressed to nothing.
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(Dimens.Space1),
@@ -320,26 +341,9 @@ private fun LabCard(
                 )
             }
         }
-
-        Spacer(Modifier.height(Dimens.Space3))
-
-        LoadButton(isActive = isActive, onClick = onLoad)
     }
 }
 
-/**
- * Chooses between the ways one experiment can be built.
- *
- * A [FlowRow] of chips rather than a `SegmentedControl`: the number of variations is
- * data-driven (two today, but a course sheet can list more), the labels are full phrases like
- * "Variation A · Diode OR gate", and the rail's equal-width segments would ellipsise them into
- * uselessness. Chips keep their intrinsic width and wrap.
- *
- * The variation letter is pulled out of the subtitle so the chip can stay short. `subtitle` is
- * formatted "Variation A · <what it is>" by every contributing file; anything that does not match
- * falls back to its own text, so an unformatted subtitle degrades to a long chip rather than a
- * blank one.
- */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun VariationPicker(
@@ -371,13 +375,10 @@ private fun VariationPicker(
                             color = accent.copy(alpha = if (isPicked) 0.9f else 0.35f),
                             shape = RoundedCornerShape(Dimens.RadiusSm)
                         )
+                        .desktopPointerHand()
                         .clickable { onSelect(index) }
-                        // 32dp, not the 48dp floor: this is a chip inside an already-tappable
-                        // card, sits in a wrapping row of its peers, and the card's own LOAD
-                        // button carries the full target. Raising these to 48dp would push a
-                        // three-variation strip past the card width on a 360dp screen.
-                        .heightIn(min = 32.dp)
-                        .padding(horizontal = Dimens.Space2, vertical = Dimens.Space1),
+                        .heightIn(min = 28.dp)
+                        .padding(horizontal = Dimens.Space2, vertical = 3.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -393,13 +394,6 @@ private fun VariationPicker(
     }
 }
 
-/**
- * The short label for a variation chip: "A · Diode OR gate" out of
- * "Variation A · Diode OR gate".
- *
- * Falls back to the whole subtitle, and then to a bare letter derived from [index], so no chip is
- * ever empty regardless of how a future preset words itself.
- */
 private fun variationChipLabel(subtitle: String, index: Int): String {
     val prefix = "Variation "
     if (subtitle.startsWith(prefix)) {
@@ -428,31 +422,28 @@ private fun LoadButton(isActive: Boolean, onClick: () -> Unit) {
     val accent = if (isActive) PhosphorCore else AccentCyan
     Row(
         modifier = Modifier
-            .fillMaxWidth()
-            // Full 48dp target, which the old 32dp-content Button did not give.
-            .heightIn(min = Dimens.MinTouchTarget)
+            .heightIn(min = 34.dp)
             .clip(RoundedCornerShape(Dimens.RadiusMd))
-            .background(accent.copy(alpha = 0.14f))
+            .background(accent.copy(alpha = 0.16f))
             .border(Dimens.Hairline, accent, RoundedCornerShape(Dimens.RadiusMd))
+            .desktopPointerHand()
             .clickable(onClick = onClick)
-            .padding(horizontal = Dimens.Space3),
+            .padding(horizontal = Dimens.Space3, vertical = 6.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
-            // Import (arrow arriving at the bench) — the IEC standby glyph read as an
-            // on/off symbol, which is not what "load this build" means.
             imageVector = if (isActive) LogicIcons.Reload else LogicIcons.Import,
             contentDescription = null,
             tint = accent,
-            modifier = Modifier.size(16.dp)
+            modifier = Modifier.size(15.dp)
         )
+        Spacer(Modifier.width(6.dp))
         Text(
-            text = if (isActive) "RELOAD THIS BUILD" else "LOAD ONTO BREADBOARD",
-            style = LogicLabsType.SwitchPlateLg,
+            text = if (isActive) "RELOAD" else "LOAD",
+            style = LogicLabsType.SwitchPlate,
             color = accent,
-            maxLines = 1,
-            modifier = Modifier.padding(start = Dimens.Space2)
+            maxLines = 1
         )
     }
 }

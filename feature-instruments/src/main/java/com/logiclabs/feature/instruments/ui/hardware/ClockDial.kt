@@ -3,6 +3,8 @@ package com.logiclabs.feature.instruments.ui.hardware
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -36,6 +38,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.isShiftPressed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
@@ -43,6 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.logiclabs.core.designsystem.component.desktopPointerHand
 import com.logiclabs.core.designsystem.theme.AccentCyan
 import com.logiclabs.core.designsystem.theme.AmberCore
 import com.logiclabs.core.designsystem.theme.ChassisBevelHighlight
@@ -145,6 +149,7 @@ fun ClockDial(
             Box(
                 modifier = Modifier
                     .sizeIn(minWidth = Dimens.MinTouchTarget, minHeight = Dimens.MinTouchTarget)
+                    .desktopPointerHand()
                     .clickable(
                         interactionSource = interaction,
                         indication = null,
@@ -158,7 +163,9 @@ fun ClockDial(
                         awaitPointerEventScope {
                             while (true) {
                                 val ev = awaitPointerEvent()
-                                if (ev.type == PointerEventType.Scroll) {
+                                // Only consume scroll wheel when Shift is held so vertical scrolling
+                                // on the Trainer Console Dock never stalls when passing over the knob.
+                                if (ev.type == PointerEventType.Scroll && ev.keyboardModifiers.isShiftPressed) {
                                     val dy = ev.changes.firstOrNull()?.scrollDelta?.y ?: 0f
                                     if (dy != 0f) {
                                         advance(if (dy < 0f) 1 else -1)
@@ -203,13 +210,28 @@ fun ClockDial(
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(Dimens.Space1)) {
-            Text(
-                text = formatClockFrequency(frequencyHz),
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace,
-                color = if (isRunning) PhosphorBloom else TextSecondary,
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = formatClockFrequency(frequencyHz),
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    color = if (isRunning) PhosphorBloom else TextSecondary,
+                )
+                ClockRateStepButton(
+                    label = "−",
+                    enabled = currentStepIndex > 0,
+                    onClick = { advance(-1) }
+                )
+                ClockRateStepButton(
+                    label = "+",
+                    enabled = currentStepIndex < lastIndex,
+                    onClick = { advance(1) }
+                )
+            }
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(Dimens.Space2),
@@ -226,6 +248,35 @@ fun ClockDial(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun ClockRateStepButton(
+    label: String,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(20.dp)
+            .clip(RoundedCornerShape(4.dp))
+            .background(if (enabled) SwitchWell else SwitchWell.copy(alpha = 0.45f))
+            .border(
+                width = Dimens.Hairline,
+                color = if (enabled) AccentCyan.copy(alpha = 0.55f) else ChassisBevelHighlight.copy(alpha = 0.4f),
+                shape = RoundedCornerShape(4.dp)
+            )
+            .then(if (enabled) Modifier.desktopPointerHand().clickable(role = Role.Button, onClick = onClick) else Modifier),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            fontFamily = FontFamily.Monospace,
+            color = if (enabled) AccentCyan else TextSecondary.copy(alpha = 0.4f)
+        )
     }
 }
 

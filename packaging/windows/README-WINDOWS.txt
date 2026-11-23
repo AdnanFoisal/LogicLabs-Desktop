@@ -1,5 +1,5 @@
 ======================================================================
-  LOGIC LABS v1.1.2 — WINDOWS DESKTOP EDITION (Windows 10 / 11 x64)
+  LOGIC LABS v1.1.3 — WINDOWS DESKTOP EDITION (Windows 10 / 11 x64)
   K&H IDL-800A Digital Logic Trainer & AD-200 Breadboard Workstation
 ======================================================================
 

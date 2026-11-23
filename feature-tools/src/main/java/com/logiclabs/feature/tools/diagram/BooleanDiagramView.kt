@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -48,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalDensity
 import com.logiclabs.core.bridge.circuit.BreadboardCircuit
 import com.logiclabs.core.designsystem.component.ChamferedPanel
+import com.logiclabs.core.designsystem.component.DesktopVerticalScrollbar
 import com.logiclabs.core.designsystem.component.LogicIcons
 import com.logiclabs.core.designsystem.component.TelemetryPill
 import com.logiclabs.core.designsystem.theme.AccentCyan
@@ -363,55 +365,67 @@ private fun LegendPanel(
             .padding(bottom = Dimens.Space3),
         fill = SurfaceCard
     ) {
-        Column(
+        val exprScroll = rememberScrollState()
+        Box(
             modifier = Modifier
-                .padding(Dimens.Space3)
-                // Big circuits can derive eight expressions plus notes; scroll
-                // rather than starve the canvas above.
+                .fillMaxWidth()
                 .heightIn(max = 208.dp)
-                .verticalScroll(rememberScrollState())
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(exprScroll)
+                    .padding(start = Dimens.Space3, end = Dimens.Space5, top = Dimens.Space3, bottom = Dimens.Space3)
             ) {
-                Text(
-                    text = "DERIVED BOOLEAN EXPRESSIONS",
-                    style = LogicLabsType.SwitchPlateLg,
-                    color = ChassisSilkscreen
-                )
-                LevelKeys()
-            }
-
-            if (layout.expressions.isNotEmpty()) {
-                Spacer(Modifier.height(Dimens.Space2))
-                for (line in layout.expressions) {
-                    ExpressionRow(
-                        line = line,
-                        isCopied = copiedKey == line.outputLabel,
-                        onCopy = onCopy
-                    )
-                }
-            } else {
-                Spacer(Modifier.height(Dimens.Space2))
-                Text(
-                    text = "No outputs wired — expressions appear once an LED or 7-segment input is driven.",
-                    style = LogicLabsType.BodySm,
-                    color = TextTertiary
-                )
-            }
-
-            if (layout.notes.isNotEmpty()) {
-                Spacer(Modifier.height(Dimens.Space2))
-                for (note in layout.notes) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
-                        text = "▸ $note",
-                        style = LogicLabsType.TechnicalSm,
+                        text = "DERIVED BOOLEAN EXPRESSIONS",
+                        style = LogicLabsType.SwitchPlateLg,
+                        color = ChassisSilkscreen
+                    )
+                    LevelKeys()
+                }
+
+                if (layout.expressions.isNotEmpty()) {
+                    Spacer(Modifier.height(Dimens.Space2))
+                    for (line in layout.expressions) {
+                        ExpressionRow(
+                            line = line,
+                            isCopied = copiedKey == line.outputLabel,
+                            onCopy = onCopy
+                        )
+                    }
+                } else {
+                    Spacer(Modifier.height(Dimens.Space2))
+                    Text(
+                        text = "No outputs wired — expressions appear once an LED or 7-segment input is driven.",
+                        style = LogicLabsType.BodySm,
                         color = TextTertiary
                     )
                 }
+
+                if (layout.notes.isNotEmpty()) {
+                    Spacer(Modifier.height(Dimens.Space2))
+                    for (note in layout.notes) {
+                        Text(
+                            text = "▸ $note",
+                            style = LogicLabsType.TechnicalSm,
+                            color = TextTertiary
+                        )
+                    }
+                }
             }
+            DesktopVerticalScrollbar(
+                scrollState = exprScroll,
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .fillMaxHeight()
+                    .padding(vertical = Dimens.Space2, horizontal = 4.dp)
+            )
         }
     }
 }

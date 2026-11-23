@@ -1,6 +1,5 @@
 package com.logiclabs.app.ui.sheets
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -8,13 +7,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.logiclabs.app.ui.component.DipPackageDiagram
 import com.logiclabs.app.ui.component.dipPinRoleInfo
@@ -31,8 +31,10 @@ import com.logiclabs.core.bridge.catalog.TTLChipCatalog
 import com.logiclabs.core.bridge.model.PinDefinition
 import com.logiclabs.core.bridge.model.PinRole
 import com.logiclabs.core.designsystem.component.DesktopModalDialog
+import com.logiclabs.core.designsystem.component.DesktopVerticalScrollbar
 import com.logiclabs.core.designsystem.component.LogicIcons
 import com.logiclabs.core.designsystem.component.SheetScaffold
+import com.logiclabs.core.designsystem.component.keyboardPageScroll
 import com.logiclabs.core.designsystem.theme.AccentCyan
 import com.logiclabs.core.designsystem.theme.BusGnd
 import com.logiclabs.core.designsystem.theme.BusVcc
@@ -53,11 +55,12 @@ fun IcPinoutInspectorSheet(
     onDismiss: () -> Unit
 ) {
     val model = TTLChipCatalog.getInfo(partNumber) ?: return
+    val listState = rememberLazyListState()
 
     DesktopModalDialog(
         onDismissRequest = onDismiss,
-        maxWidth = 760.dp,
-        maxHeight = 680.dp
+        maxWidth = 840.dp,
+        maxHeight = 700.dp
     ) {
         val displayPart = if (partNumber.startsWith("74")) partNumber else "74$partNumber"
         SheetScaffold(
@@ -66,39 +69,53 @@ fun IcPinoutInspectorSheet(
             titleIcon = LogicIcons.Chip,
             onDismiss = onDismiss
         ) {
-            LazyColumn(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 560.dp),
-                verticalArrangement = Arrangement.spacedBy(Dimens.Space3)
+                    .weight(1f, fill = false)
+                    .keyboardPageScroll(listState)
             ) {
-                item {
-                    PhysicalDIPGraphic(
-                        partNumber = model.partNumber,
-                        pinCount = model.pinCount,
-                        pins = model.pins
-                    )
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(end = Dimens.Space3),
+                    verticalArrangement = Arrangement.spacedBy(Dimens.Space3)
+                ) {
+                    item {
+                        PhysicalDIPGraphic(
+                            partNumber = model.partNumber,
+                            pinCount = model.pinCount,
+                            pins = model.pins
+                        )
+                    }
+
+                    item {
+                        InternalSchematicCard(
+                            partNumber = model.partNumber,
+                            pins = model.pins
+                        )
+                    }
+
+                    item {
+                        PinoutTableCard(
+                            pinCount = model.pinCount,
+                            pins = model.pins
+                        )
+                    }
                 }
 
-                item {
-                    InternalSchematicCard(
-                        partNumber = model.partNumber,
-                        pins = model.pins
-                    )
-                }
-
-                item {
-                    PinoutTableCard(
-                        pinCount = model.pinCount,
-                        pins = model.pins
-                    )
-                }
+                DesktopVerticalScrollbar(
+                    listState = listState,
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .fillMaxHeight()
+                )
             }
         }
     }
 }
 
-/** Graphic of physical IC package (notch, pin 1 marker, pin numbers, signal names). */
 @Composable
 private fun PhysicalDIPGraphic(
     partNumber: String,
@@ -121,9 +138,6 @@ private fun PhysicalDIPGraphic(
         )
         Spacer(Modifier.height(Dimens.Space2))
 
-        // The bench-accurate package: epoxy body, gull-wing leads, index notch,
-        // pin-1 dimple, on-body pin numbers and role-coded names at the leads —
-        // the same rendering language as the placed ICs on the breadboard.
         DipPackageDiagram(
             partNumber = partNumber,
             pinCount = pinCount,
@@ -134,7 +148,6 @@ private fun PhysicalDIPGraphic(
     }
 }
 
-/** Internal Logic Gate Schematic / Functional Breakdown */
 @Composable
 private fun InternalSchematicCard(
     partNumber: String,
@@ -155,9 +168,6 @@ private fun InternalSchematicCard(
         )
         Spacer(Modifier.height(Dimens.Space2))
 
-        // Derived from the same TTLChipCatalog models the bench places, so the schematic can
-        // never disagree with the reference tab or the sandbox — and every catalog part
-        // (including the 7411 and 74266) gets a real gate breakdown instead of a shrug.
         val gates = remember(partNumber) {
             buildIcChipSpec(partNumber)?.gateMappings ?: emptyList()
         }
@@ -168,57 +178,81 @@ private fun InternalSchematicCard(
                 style = LogicLabsType.TechnicalXs,
                 color = TextSecondary
             )
-        }
-
-        gates.forEach { mapping ->
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 2.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = mapping.title,
-                        style = LogicLabsType.TechnicalSm.copy(fontWeight = FontWeight.Bold),
-                        color = PhosphorCore
-                    )
-                    if (mapping.expression.isNotEmpty()) {
-                        Text(
-                            text = mapping.expression,
-                            style = LogicLabsType.TechnicalXs,
-                            color = TextSecondary
-                        )
+        } else {
+            // 2-column compact desktop grid for internal gates
+            Column(verticalArrangement = Arrangement.spacedBy(Dimens.Space2)) {
+                gates.chunked(2).forEach { pair ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.Space2)
+                    ) {
+                        pair.forEach { mapping ->
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(Dimens.RadiusSm))
+                                    .background(ChassisBase.copy(alpha = 0.65f))
+                                    .border(Dimens.Hairline, SurfaceCardBorder, RoundedCornerShape(Dimens.RadiusSm))
+                                    .padding(horizontal = Dimens.Space2, vertical = 6.dp),
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = mapping.title,
+                                        style = LogicLabsType.TechnicalSm.copy(fontWeight = FontWeight.Bold),
+                                        color = PhosphorCore,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    if (mapping.expression.isNotEmpty()) {
+                                        Text(
+                                            text = mapping.expression,
+                                            style = LogicLabsType.TechnicalXs,
+                                            color = TextSecondary,
+                                            maxLines = 1
+                                        )
+                                    }
+                                }
+                                if (mapping.inputPins.isNotEmpty()) {
+                                    Text(
+                                        text = "IN  " + mapping.inputPins.joinToString(" · ") { "${it.name} (P${it.pinNumber})" },
+                                        style = LogicLabsType.TechnicalXs,
+                                        color = TextPrimary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                if (mapping.outputPins.isNotEmpty()) {
+                                    Text(
+                                        text = "OUT " + mapping.outputPins.joinToString(" · ") { "${it.name} (P${it.pinNumber})" },
+                                        style = LogicLabsType.TechnicalXs,
+                                        color = TextPrimary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+                        if (pair.size == 1) Spacer(Modifier.weight(1f))
                     }
-                }
-                if (mapping.inputPins.isNotEmpty()) {
-                    Text(
-                        text = "IN  " + mapping.inputPins.joinToString(" · ") { "${it.name} (Pin ${it.pinNumber})" },
-                        style = LogicLabsType.TechnicalXs,
-                        color = TextPrimary
-                    )
-                }
-                if (mapping.outputPins.isNotEmpty()) {
-                    Text(
-                        text = "OUT " + mapping.outputPins.joinToString(" · ") { "${it.name} (Pin ${it.pinNumber})" },
-                        style = LogicLabsType.TechnicalXs,
-                        color = TextPrimary
-                    )
                 }
             }
         }
     }
 }
 
-/** Pinout Breakdown Table */
+/** 2-Column Physical-Side Pinout Breakdown Table (Pins 1..N/2 left, Pins N/2+1..N right). */
 @Composable
 private fun PinoutTableCard(
     pinCount: Int,
     pins: Map<Int, PinDefinition>
 ) {
+    val half = (pinCount + 1) / 2
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -228,56 +262,80 @@ private fun PinoutTableCard(
             .padding(Dimens.Space3)
     ) {
         Text(
-            text = "PINOUT SPECIFICATION BREAKDOWN",
+            text = "PINOUT SPECIFICATION BREAKDOWN (PINS 1–$half  ·  PINS ${half + 1}–$pinCount)",
             style = LogicLabsType.SwitchPlate,
             color = AccentCyan
         )
         Spacer(Modifier.height(Dimens.Space2))
 
-        // Table Header
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(Dimens.Space2)
+        ) {
+            PinSideColumn(
+                pinNumbers = (1..half).toList(),
+                pins = pins,
+                modifier = Modifier.weight(1f)
+            )
+            PinSideColumn(
+                pinNumbers = ((half + 1)..pinCount).toList(),
+                pins = pins,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun PinSideColumn(
+    pinNumbers: List<Int>,
+    pins: Map<Int, PinDefinition>,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(ChassisBase)
-                .padding(horizontal = Dimens.Space2, vertical = Dimens.Space1),
-            horizontalArrangement = Arrangement.SpaceBetween
+                .padding(horizontal = Dimens.Space2, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("PIN #", style = LogicLabsType.TechnicalXs, color = TextTertiary, modifier = Modifier.width(44.dp))
-            Text("SIGNAL", style = LogicLabsType.TechnicalXs, color = TextTertiary, modifier = Modifier.width(60.dp))
-            Text("ROLE", style = LogicLabsType.TechnicalXs, color = TextTertiary, modifier = Modifier.width(90.dp))
-            Text("DESCRIPTION", style = LogicLabsType.TechnicalXs, color = TextTertiary, modifier = Modifier.weight(1f))
+            Text("PIN", style = LogicLabsType.TechnicalXs, color = TextTertiary, modifier = Modifier.width(42.dp))
+            Text("SIG", style = LogicLabsType.TechnicalXs, color = TextTertiary, modifier = Modifier.width(48.dp))
+            Text("ROLE", style = LogicLabsType.TechnicalXs, color = TextTertiary, modifier = Modifier.width(68.dp))
+            Text("FUNCTION", style = LogicLabsType.TechnicalXs, color = TextTertiary, modifier = Modifier.weight(1f))
         }
 
-        for (p in 1..pinCount) {
+        pinNumbers.forEach { p ->
             val def = pins[p]
+            val roleLabel = when (def?.role) {
+                PinRole.INPUT -> "INPUT"
+                PinRole.OUTPUT -> "OUTPUT"
+                PinRole.POWER_VCC -> "+5V VCC"
+                PinRole.POWER_GND -> "0V GND"
+                PinRole.NO_CONNECT -> "NC"
+                else -> "NC"
+            }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .border(Dimens.Hairline, SurfaceCardBorder)
                     .padding(horizontal = Dimens.Space2, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Pin $p",
+                    text = "P$p",
                     style = LogicLabsType.TechnicalXs.copy(fontWeight = FontWeight.Bold),
                     color = TextPrimary,
-                    modifier = Modifier.width(44.dp)
+                    modifier = Modifier.width(42.dp)
                 )
                 Text(
                     text = def?.name ?: "-",
                     style = LogicLabsType.TechnicalSm.copy(fontWeight = FontWeight.Bold),
                     color = dipPinRoleInfo(def?.role ?: PinRole.INPUT).second,
-                    modifier = Modifier.width(60.dp)
+                    maxLines = 1,
+                    modifier = Modifier.width(48.dp)
                 )
-                val roleLabel = when (def?.role) {
-                    PinRole.INPUT -> "INPUT"
-                    PinRole.OUTPUT -> "OUTPUT"
-                    PinRole.POWER_VCC -> "+5V VCC"
-                    PinRole.POWER_GND -> "0V GND"
-                    PinRole.NO_CONNECT -> "NO CONNECT"
-                    else -> "NC"
-                }
                 Text(
                     text = roleLabel,
                     style = LogicLabsType.TechnicalXs,
@@ -288,21 +346,23 @@ private fun PinoutTableCard(
                         PinRole.POWER_GND -> BusGnd
                         else -> TextTertiary
                     },
-                    modifier = Modifier.width(90.dp)
+                    maxLines = 1,
+                    modifier = Modifier.width(68.dp)
                 )
                 Text(
                     text = when {
-                        def?.role == PinRole.POWER_VCC -> "Primary +5.0V DC supply rail"
-                        def?.role == PinRole.POWER_GND -> "Ground reference potential"
-                        def?.isClock == true -> "Edge-triggered clock trigger input"
-                        def?.isInverted == true -> "Active-LOW control input"
-                        def?.role == PinRole.OUTPUT -> "Logic output driver"
-                        def?.role == PinRole.INPUT -> "Digital logic input"
-                        else -> "Unconnected internal terminal"
+                        def?.role == PinRole.POWER_VCC -> "+5V DC supply"
+                        def?.role == PinRole.POWER_GND -> "0V reference"
+                        def?.isClock == true -> "Edge clock input"
+                        def?.isInverted == true -> "Active-LOW input"
+                        def?.role == PinRole.OUTPUT -> "Logic output"
+                        def?.role == PinRole.INPUT -> "Logic input"
+                        else -> "No connect"
                     },
                     style = LogicLabsType.TechnicalXs,
                     color = TextSecondary,
                     maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
             }

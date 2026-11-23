@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
@@ -82,8 +83,11 @@ import com.logiclabs.core.data.progress.BenchStats
 import com.logiclabs.core.data.session.Session
 import com.logiclabs.core.data.session.SessionKind
 import com.logiclabs.core.designsystem.component.ChamferedPanel
+import com.logiclabs.core.designsystem.component.DesktopVerticalScrollbar
 import com.logiclabs.core.designsystem.component.LogicIcons
 import com.logiclabs.core.designsystem.component.TelemetryPill
+import com.logiclabs.core.designsystem.component.desktopPointerHand
+import com.logiclabs.core.designsystem.component.keyboardPageScroll
 import com.logiclabs.core.designsystem.theme.AccentCyan
 import com.logiclabs.core.designsystem.theme.AmberCore
 import com.logiclabs.core.designsystem.theme.CanvasBackground
@@ -208,13 +212,28 @@ fun HomeScreen(
         ) {
             when (selectedTab) {
                 HomeTab.PROJECTS -> {
-                    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                    val projectsListState = rememberLazyListState()
+                    val quickStartLabs = remember(classicLabs) {
+                        val preferred = listOf(1, 4, 7, 10)
+                        preferred.mapNotNull { num -> classicLabs.firstOrNull { it.labNumber == num } }
+                            .ifEmpty { classicLabs.take(4) }
+                    }
+                    BoxWithConstraints(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .keyboardPageScroll(projectsListState)
+                    ) {
                         val isWide = maxWidth >= 780.dp
                         LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
+                            state = projectsListState,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(end = 12.dp),
                             contentPadding = PaddingValues(
-                                horizontal = Dimens.Space5,
-                                vertical = Dimens.Space4
+                                start = Dimens.Space5,
+                                end = Dimens.Space4,
+                                top = Dimens.Space4,
+                                bottom = Dimens.Space4
                             ),
                             verticalArrangement = Arrangement.spacedBy(Dimens.Space3)
                         ) {
@@ -338,10 +357,58 @@ fun HomeScreen(
                                 }
                             }
 
+                            // Quick-Start Classic Labs shelf fills first-launch workspace with 1-click circuits
+                            item(key = "quick-start-header") {
+                                SectionHeader(
+                                    title = "QUICK-START CLASSIC LABS",
+                                    countLabel = "$verifiedClassic / $classicCount VERIFIED",
+                                    progress = if (classicCount > 0) verifiedClassic.toFloat() / classicCount else 0f,
+                                    entered = entered,
+                                    trailing = {
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(Dimens.RadiusPill))
+                                                .background(AmberCore.copy(alpha = 0.12f))
+                                                .border(Dimens.Hairline, AmberCore.copy(alpha = 0.55f), RoundedCornerShape(Dimens.RadiusPill))
+                                                .desktopPointerHand()
+                                                .clickable {
+                                                    Haptics.tick()
+                                                    onTabSelected(HomeTab.COURSEWORK)
+                                                }
+                                                .padding(horizontal = Dimens.Space3, vertical = 5.dp)
+                                        ) {
+                                            Text(
+                                                text = "ALL 49 LABS ›",
+                                                style = LogicLabsType.TechnicalXs,
+                                                color = AmberCore,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                )
+                            }
+
+                            item(key = "quick-start-grid") {
+                                QuickStartLabsGrid(
+                                    labs = quickStartLabs,
+                                    verifiedIds = stats.verifiedLabIds,
+                                    isWide = isWide,
+                                    onLaunch = { labId -> onContinue(BenchRequest.Lab(labId)) }
+                                )
+                            }
+
                             item(key = "footer") {
                                 Footer()
                             }
                         }
+
+                        DesktopVerticalScrollbar(
+                            listState = projectsListState,
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .fillMaxHeight()
+                                .padding(vertical = Dimens.Space3, horizontal = 3.dp)
+                        )
                     }
                 }
 
@@ -798,9 +865,93 @@ private fun SandboxCard(
 }
 
 @Composable
+private fun QuickStartLabsGrid(
+    labs: List<LabExperiment>,
+    verifiedIds: Set<String>,
+    isWide: Boolean,
+    onLaunch: (String) -> Unit
+) {
+    val rows = if (isWide) listOf(labs) else labs.chunked(2)
+    Column(verticalArrangement = Arrangement.spacedBy(Dimens.Space2)) {
+        rows.forEach { rowLabs ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Min),
+                horizontalArrangement = Arrangement.spacedBy(Dimens.Space2)
+            ) {
+                rowLabs.forEach { lab ->
+                    val verified = lab.id in verifiedIds
+                    val accent = if (verified) PhosphorCore else AccentCyan
+                    PressableCard(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
+                        accent = accent,
+                        onClick = { onLaunch(lab.id) }
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(Dimens.Space3),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "EXP %02d".format(lab.labNumber),
+                                    style = LogicLabsType.TechnicalXs,
+                                    color = if (verified) PhosphorCore else AmberCore,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(accent.copy(alpha = 0.14f))
+                                        .padding(horizontal = 5.dp, vertical = 1.dp)
+                                ) {
+                                    Text(
+                                        text = if (verified) "PASS" else lab.targetChips.joinToString("/"),
+                                        style = LogicLabsType.TechnicalXs,
+                                        color = accent,
+                                        fontSize = 9.sp,
+                                        maxLines = 1
+                                    )
+                                }
+                            }
+                            Text(
+                                text = lab.title,
+                                style = LogicLabsType.TitleSm,
+                                color = TextPrimary,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = lab.subtitle,
+                                style = LogicLabsType.TechnicalXs,
+                                color = TextTertiary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+                val expectedCols = if (isWide) labs.size else 2
+                repeat((expectedCols - rowLabs.size).coerceAtLeast(0)) {
+                    Spacer(Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun Footer() {
     Text(
-        text = "LOGIC LABS v1.1.2 · ${DesktopPlatform.platformEditionLabel} EDITION · OFFLINE BENCH · NO ACCOUNTS · NO TRACKING",
+        text = "LOGIC LABS v1.1.3 · ${DesktopPlatform.platformEditionLabel} EDITION · OFFLINE BENCH · NO ACCOUNTS · NO TRACKING",
         style = LogicLabsType.TechnicalXs,
         color = TextTertiary,
         maxLines = 1,
@@ -836,6 +987,7 @@ private fun PressableCard(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .desktopPointerHand()
                 .clickable(
                     interactionSource = interaction,
                     indication = null,

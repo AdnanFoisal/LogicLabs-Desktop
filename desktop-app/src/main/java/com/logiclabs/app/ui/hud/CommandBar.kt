@@ -1,25 +1,23 @@
 package com.logiclabs.app.ui.hud
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -35,15 +33,14 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.logiclabs.core.bridge.model.SimulationMode
+import com.logiclabs.core.designsystem.component.DesktopTooltip
 import com.logiclabs.core.designsystem.component.GlassSurface
 import com.logiclabs.core.designsystem.component.LogicIcons
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
-import com.logiclabs.core.bridge.model.SimulationMode
-import com.logiclabs.core.designsystem.theme.AmberCore
+import com.logiclabs.core.designsystem.component.desktopPointerHand
+import com.logiclabs.core.designsystem.component.horizontalWheelScroll
 import com.logiclabs.core.designsystem.theme.AccentCyan
+import com.logiclabs.core.designsystem.theme.AmberCore
 import com.logiclabs.core.designsystem.theme.Dimens
 import com.logiclabs.core.designsystem.theme.LogicLabsType
 import com.logiclabs.core.designsystem.theme.Motion
@@ -56,11 +53,11 @@ import com.logiclabs.core.designsystem.theme.TextSecondary
 import com.logiclabs.core.designsystem.theme.TextTertiary
 
 /**
- * Floating command pill that sits over the canvas.
+ * Floating top command bar spanning the bench pane.
  *
- * On Windows desktop, also houses quick Undo / Redo pills (`Ctrl+Z` / `Ctrl+Y`),
- * a Controls & Shortcuts Guide button (`?` / `F1`), and a Show Console toggle when
- * the right-hand IDL-800A rack is collapsed.
+ * Splits cleanly into a left identity/telemetry group and a right-aligned desktop action group
+ * (`Undo`, `Redo`, `Save`, `Share`, `Verify`, `?`) with native hover tooltips and zero idle
+ * 60 FPS animations.
  */
 @Composable
 fun CommandBar(
@@ -86,6 +83,7 @@ fun CommandBar(
     consoleCollapsed: Boolean = false,
     onToggleConsoleClick: (() -> Unit)? = null
 ) {
+    val barScroll = rememberScrollState()
     GlassSurface(
         modifier = modifier
             .padding(horizontal = Dimens.CommandBarInset, vertical = Dimens.Space1)
@@ -93,105 +91,124 @@ fun CommandBar(
             .heightIn(min = Dimens.CommandBarHeight),
         shape = RoundedCornerShape(Dimens.RadiusPill)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .padding(start = if (onBackClick != null) Dimens.Space2 else Dimens.Space4, end = Dimens.Space2)
-                .heightIn(min = Dimens.CommandBarHeight),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (onBackClick != null) {
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .clickable(onClick = onBackClick),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = LogicIcons.Back,
-                        contentDescription = "Leave bench",
-                        tint = TextSecondary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-                Spacer(Modifier.width(Dimens.Space1))
-            }
-
-            Wordmark(
-                machineLine = if (projectTitle != null) projectTitle.uppercase() else "IDL-800A",
-                modifier = Modifier.widthIn(max = 156.dp)
-            )
-
-            Spacer(Modifier.width(Dimens.Space2))
-
-            if (onToggleSimulationMode != null) {
-                SimulationModePill(mode = simulationMode, onClick = onToggleSimulationMode)
-            }
-
-            if (hasBurnedChips && onRestoreChips != null) {
-                Spacer(Modifier.width(Dimens.Space1))
-                RestoreIcPill(onClick = onRestoreChips)
-            }
-
-            Spacer(Modifier.width(Dimens.Space2))
-
-            // Telemetry readouts
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+            val minRowWidth = maxWidth
             Row(
-                horizontalArrangement = Arrangement.spacedBy(Dimens.Space1),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalWheelScroll(barScroll)
+                    .horizontalScroll(barScroll)
+                    .widthIn(min = minRowWidth)
+                    .padding(start = if (onBackClick != null) Dimens.Space2 else Dimens.Space4, end = Dimens.Space2)
+                    .heightIn(min = Dimens.CommandBarHeight),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TelemetryPill(label = "IC", value = chipCount.toString())
-                TelemetryPill(label = "WIRE", value = wireCount.toString())
-                RailPill(live = masterPower)
-            }
+                if (onBackClick != null) {
+                    DesktopTooltip(text = "Return to Home Hub") {
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .desktopPointerHand()
+                                .clickable(onClick = onBackClick),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = LogicIcons.Back,
+                                contentDescription = "Leave bench",
+                                tint = TextSecondary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                    Spacer(Modifier.width(Dimens.Space1))
+                }
 
-            // Desktop Undo / Redo
-            if (onUndoClick != null && onRedoClick != null) {
+                Wordmark(
+                    machineLine = if (projectTitle != null) projectTitle.uppercase() else "IDL-800A",
+                    modifier = Modifier.widthIn(max = 156.dp)
+                )
+
                 Spacer(Modifier.width(Dimens.Space2))
-                DesktopActionPill(
-                    label = "UNDO",
-                    enabled = canUndo,
-                    accent = AccentCyan,
-                    onClick = onUndoClick
-                )
-                Spacer(Modifier.width(4.dp))
-                DesktopActionPill(
-                    label = "REDO",
-                    enabled = canRedo,
-                    accent = AccentCyan,
-                    onClick = onRedoClick
-                )
-            }
 
-            if (consoleCollapsed && onToggleConsoleClick != null) {
+                if (onToggleSimulationMode != null) {
+                    DesktopTooltip(text = "Switch Ideal / Practical IC physics") {
+                        SimulationModePill(mode = simulationMode, onClick = onToggleSimulationMode)
+                    }
+                }
+
+                if (hasBurnedChips && onRestoreChips != null) {
+                    Spacer(Modifier.width(Dimens.Space1))
+                    DesktopTooltip(text = "Replace destroyed ICs") {
+                        RestoreIcPill(onClick = onRestoreChips)
+                    }
+                }
+
                 Spacer(Modifier.width(Dimens.Space2))
-                DesktopActionPill(
-                    label = "SHOW CONSOLE",
-                    enabled = true,
-                    accent = AmberCore,
-                    onClick = onToggleConsoleClick
-                )
-            }
 
-            Spacer(Modifier.width(Dimens.Space2))
+                // Telemetry readouts
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.Space1),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TelemetryPill(label = "IC", value = chipCount.toString())
+                    TelemetryPill(label = "WIRE", value = wireCount.toString())
+                    RailPill(live = masterPower)
+                }
 
-            if (onSaveClick != null) {
-                SaveAction(title = projectTitle, onClick = onSaveClick)
-                Spacer(Modifier.width(Dimens.Space1))
-            }
+                Spacer(Modifier.weight(1f).widthIn(min = Dimens.Space2))
 
-            if (onShareClick != null) {
-                ShareAction(onClick = onShareClick)
-                Spacer(Modifier.width(Dimens.Space1))
-            }
+                // Right-aligned desktop action group
+                if (onUndoClick != null && onRedoClick != null) {
+                    DesktopTooltip(text = "Undo last board change", shortcut = "Ctrl+Z") {
+                        DesktopActionPill(
+                            label = "UNDO",
+                            enabled = canUndo,
+                            accent = AccentCyan,
+                            onClick = onUndoClick
+                        )
+                    }
+                    Spacer(Modifier.width(4.dp))
+                    DesktopTooltip(text = "Redo board change", shortcut = "Ctrl+Y") {
+                        DesktopActionPill(
+                            label = "REDO",
+                            enabled = canRedo,
+                            accent = AccentCyan,
+                            onClick = onRedoClick
+                        )
+                    }
+                }
 
-            VerifyAction(passed = verificationPassed, onClick = onVerifyClick)
+                if (consoleCollapsed && onToggleConsoleClick != null) {
+                    Spacer(Modifier.width(Dimens.Space2))
+                    DesktopTooltip(text = "Restore right-hand IDL-800A console") {
+                        DesktopActionPill(
+                            label = "SHOW CONSOLE",
+                            enabled = true,
+                            accent = AmberCore,
+                            onClick = onToggleConsoleClick
+                        )
+                    }
+                }
 
-            if (onControlsGuideClick != null) {
-                Spacer(Modifier.width(Dimens.Space1))
-                ControlsHelpButton(onClick = onControlsGuideClick)
+                Spacer(Modifier.width(Dimens.Space2))
+
+                if (onSaveClick != null) {
+                    SaveAction(title = projectTitle, onClick = onSaveClick)
+                    Spacer(Modifier.width(Dimens.Space1))
+                }
+
+                if (onShareClick != null) {
+                    ShareAction(onClick = onShareClick)
+                    Spacer(Modifier.width(Dimens.Space1))
+                }
+
+                VerifyAction(passed = verificationPassed, onClick = onVerifyClick)
+
+                if (onControlsGuideClick != null) {
+                    Spacer(Modifier.width(Dimens.Space1))
+                    ControlsHelpButton(onClick = onControlsGuideClick)
+                }
             }
         }
     }
@@ -206,7 +223,7 @@ private fun DesktopActionPill(
 ) {
     Row(
         modifier = Modifier
-            .alpha(if (enabled) 1f else 0.38f)
+            .alpha(if (enabled) 1f else 0.48f)
             .clip(RoundedCornerShape(Dimens.RadiusSm))
             .background(if (enabled) accent.copy(alpha = 0.12f) else SurfaceCard)
             .border(
@@ -214,6 +231,7 @@ private fun DesktopActionPill(
                 if (enabled) accent.copy(alpha = 0.55f) else SurfaceCardBorder,
                 RoundedCornerShape(Dimens.RadiusSm)
             )
+            .then(if (enabled) Modifier.desktopPointerHand() else Modifier)
             .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 8.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -221,7 +239,7 @@ private fun DesktopActionPill(
         Text(
             text = label,
             style = LogicLabsType.TechnicalXs,
-            color = if (enabled) accent else TextTertiary,
+            color = if (enabled) accent else TextSecondary,
             maxLines = 1,
             softWrap = false
         )
@@ -230,21 +248,24 @@ private fun DesktopActionPill(
 
 @Composable
 private fun ControlsHelpButton(onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(34.dp)
-            .clip(CircleShape)
-            .background(AmberCore.copy(alpha = 0.14f))
-            .border(Dimens.Hairline, AmberCore.copy(alpha = 0.65f), CircleShape)
-            .clickable(onClick = onClick)
-            .semantics { contentDescription = "Controls and keyboard shortcuts guide (F1)" },
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = "?",
-            style = LogicLabsType.SwitchPlateLg,
-            color = AmberCore
-        )
+    DesktopTooltip(text = "Controls & Keyboard Shortcuts", shortcut = "F1") {
+        Box(
+            modifier = Modifier
+                .size(34.dp)
+                .clip(CircleShape)
+                .background(AmberCore.copy(alpha = 0.14f))
+                .border(Dimens.Hairline, AmberCore.copy(alpha = 0.65f), CircleShape)
+                .desktopPointerHand()
+                .clickable(onClick = onClick)
+                .semantics { contentDescription = "Controls and keyboard shortcuts guide (F1)" },
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "?",
+                style = LogicLabsType.SwitchPlateLg,
+                color = AmberCore
+            )
+        }
     }
 }
 
@@ -269,10 +290,6 @@ private fun Wordmark(machineLine: String, modifier: Modifier = Modifier) {
     }
 }
 
-/**
- * Save action with a compact project label. Sits left of the verify action and carries
- * the same 48dp target and circular chrome so the two read as a matched pair.
- */
 @Composable
 private fun SaveAction(title: String?, onClick: () -> Unit) {
     Row(
@@ -289,12 +306,46 @@ private fun SaveAction(title: String?, onClick: () -> Unit) {
                 modifier = Modifier.widthIn(max = 96.dp)
             )
         }
+        DesktopTooltip(text = "Save Project", shortcut = "Ctrl+S") {
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(CircleShape)
+                    .desktopPointerHand()
+                    .clickable(onClick = onClick)
+                    .semantics { contentDescription = "Save project" },
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(CircleShape)
+                        .background(AccentCyan.copy(alpha = 0.14f))
+                        .border(Dimens.Hairline, AccentCyan.copy(alpha = 0.65f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = LogicIcons.Save,
+                        contentDescription = null,
+                        tint = AccentCyan,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ShareAction(onClick: () -> Unit) {
+    DesktopTooltip(text = "Share Circuit Bytecode / JSON") {
         Box(
             modifier = Modifier
-                .size(Dimens.MinTouchTarget)
+                .size(38.dp)
                 .clip(CircleShape)
+                .desktopPointerHand()
                 .clickable(onClick = onClick)
-                .semantics { contentDescription = "Save project" },
+                .semantics { contentDescription = "Share circuit code" },
             contentAlignment = Alignment.Center
         ) {
             Box(
@@ -306,7 +357,7 @@ private fun SaveAction(title: String?, onClick: () -> Unit) {
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = LogicIcons.Save,
+                    imageVector = LogicIcons.Share,
                     contentDescription = null,
                     tint = AccentCyan,
                     modifier = Modifier.size(18.dp)
@@ -316,38 +367,6 @@ private fun SaveAction(title: String?, onClick: () -> Unit) {
     }
 }
 
-/**
- * Share action button using [LogicIcons.Share].
- */
-@Composable
-private fun ShareAction(onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(Dimens.MinTouchTarget)
-            .clip(CircleShape)
-            .clickable(onClick = onClick)
-            .semantics { contentDescription = "Share circuit code" },
-        contentAlignment = Alignment.Center
-    ) {
-        Box(
-            modifier = Modifier
-                .size(34.dp)
-                .clip(CircleShape)
-                .background(AccentCyan.copy(alpha = 0.14f))
-                .border(Dimens.Hairline, AccentCyan.copy(alpha = 0.65f), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = LogicIcons.Share,
-                contentDescription = null,
-                tint = AccentCyan,
-                modifier = Modifier.size(18.dp)
-            )
-        }
-    }
-}
-
-/** Small labelled readout. Values are monospace so digit changes don't shift width. */
 @Composable
 private fun TelemetryPill(
     label: String,
@@ -357,7 +376,7 @@ private fun TelemetryPill(
     Row(
         modifier = Modifier
             .clip(RoundedCornerShape(Dimens.RadiusSm))
-            .background(Color.White.copy(alpha = 0.04f))
+            .background(SurfaceCard.copy(alpha = 0.72f))
             .border(
                 Dimens.Hairline,
                 SurfaceCardBorder,
@@ -372,10 +391,6 @@ private fun TelemetryPill(
     }
 }
 
-/**
- * Supply-rail readout whose colour interpolates between live phosphor and a dead red as
- * master power is switched, rather than cutting between two hardcoded colours.
- */
 @Composable
 private fun RailPill(live: Boolean) {
     val target = if (live) PhosphorCore else ShortCircuitAlert
@@ -416,13 +431,7 @@ private fun RailPill(live: Boolean) {
 }
 
 /**
- * Verification action with a state badge.
- *
- * A settled green ring means the last run passed. Amber means there is no current
- * result — either nothing has been run or the board changed since — and it breathes on
- * an `infiniteRepeatable` so a stale result is noticeable without being loud. Red is a
- * recorded failure and deliberately does *not* animate: a failure is a fact, not a
- * prompt.
+ * Verification action with static high-contrast state ring (zero idle 60 FPS animation overhead).
  */
 @Composable
 private fun VerifyAction(passed: Boolean?, onClick: () -> Unit) {
@@ -432,50 +441,43 @@ private fun VerifyAction(passed: Boolean?, onClick: () -> Unit) {
         null -> AccentCyan
     }
 
-    val pulse: Float = if (passed == null) {
-        val transition = rememberInfiniteTransition(label = "verifyPending")
-        val breath by transition.animateFloat(
-            initialValue = 0.28f,
-            targetValue = 0.85f,
-            animationSpec = infiniteRepeatable(
-                animation = Motion.BloomPulse,
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "verifyBreath"
-        )
-        breath
-    } else {
-        0.65f
+    val tooltipText = when (passed) {
+        true -> "Truth-Table Verified (Pass) — Re-run"
+        false -> "Verification Failed — Inspect"
+        null -> "Run 2^N Truth-Table Verification"
     }
 
-    Box(
-        modifier = Modifier
-            .size(Dimens.MinTouchTarget)
-            .clip(CircleShape)
-            .clickable(onClick = onClick)
-            .semantics {
-                contentDescription = when (passed) {
-                    true -> "Verify circuit. Last run passed."
-                    false -> "Verify circuit. Last run failed."
-                    null -> "Verify circuit. No result yet."
-                }
-            },
-        contentAlignment = Alignment.Center
-    ) {
+    DesktopTooltip(text = tooltipText, shortcut = "F5") {
         Box(
             modifier = Modifier
-                .size(34.dp)
+                .size(38.dp)
                 .clip(CircleShape)
-                .background(accent.copy(alpha = pulse * 0.18f))
-                .border(Dimens.Hairline, accent.copy(alpha = pulse), CircleShape),
+                .desktopPointerHand()
+                .clickable(onClick = onClick)
+                .semantics {
+                    contentDescription = when (passed) {
+                        true -> "Verify circuit. Last run passed."
+                        false -> "Verify circuit. Last run failed."
+                        null -> "Verify circuit. No result yet."
+                    }
+                },
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = LogicIcons.Verify,
-                contentDescription = null,
-                tint = accent,
-                modifier = Modifier.size(20.dp)
-            )
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .clip(CircleShape)
+                    .background(accent.copy(alpha = 0.16f))
+                    .border(1.dp, accent.copy(alpha = 0.72f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = LogicIcons.Verify,
+                    contentDescription = null,
+                    tint = accent,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
     }
 }
@@ -496,6 +498,7 @@ private fun SimulationModePill(
                 accent.copy(alpha = 0.6f),
                 RoundedCornerShape(Dimens.RadiusSm)
             )
+            .desktopPointerHand()
             .clickable(onClick = onClick)
             .padding(horizontal = Dimens.Space2, vertical = 3.dp)
             .semantics {
@@ -522,26 +525,16 @@ private fun SimulationModePill(
 private fun RestoreIcPill(
     onClick: () -> Unit
 ) {
-    val transition = rememberInfiniteTransition(label = "restorePulse")
-    val alpha by transition.animateFloat(
-        initialValue = 0.45f,
-        targetValue = 1.0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 600, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "restoreAlpha"
-    )
-
     Row(
         modifier = Modifier
             .clip(RoundedCornerShape(Dimens.RadiusSm))
-            .background(ShortCircuitAlert.copy(alpha = 0.22f * alpha))
+            .background(ShortCircuitAlert.copy(alpha = 0.20f))
             .border(
-                Dimens.Hairline,
-                ShortCircuitAlert.copy(alpha = alpha),
+                1.dp,
+                ShortCircuitAlert.copy(alpha = 0.85f),
                 RoundedCornerShape(Dimens.RadiusSm)
             )
+            .desktopPointerHand()
             .clickable(onClick = onClick)
             .padding(horizontal = Dimens.Space2, vertical = 3.dp)
             .semantics {
@@ -563,4 +556,3 @@ private fun RestoreIcPill(
         )
     }
 }
-

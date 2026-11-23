@@ -150,20 +150,32 @@ fun BreadboardCanvas(
                     callbacks = callbacks
                 )
         ) {
+            // Layer 1: Static AD-200 faceplate bitmap blit — only redraws on pan/zoom/theme change.
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val scale = state.scale.value
+                val pan = state.pan.value
+                withTransform({
+                    translate(pan.x, pan.y)
+                    scale(scale, scale, Offset.Zero)
+                }) {
+                    boardCache.drawStatic(this, mapper, density, scale)
+                }
+            }
+
+            // Layer 2: Dynamic circuit layer (terminal LEDs, highlighted nets, DIP ICs, jumper wires).
+            // Never invalidated by mouse-hover socket tracking or rubber-band draft wire motion.
             Canvas(modifier = Modifier.fillMaxSize()) {
                 @Suppress("UNUSED_EXPRESSION") state.circuitVersion.value
                 @Suppress("UNUSED_EXPRESSION") state.renderVersion.value
                 @Suppress("UNUSED_EXPRESSION") explosionTick
                 val scale = state.scale.value
                 val pan = state.pan.value
-                val hovered = state.hoveredSocket.value
                 val viewport = visibleBoardRect(size, pan, scale)
 
                 withTransform({
                     translate(pan.x, pan.y)
                     scale(scale, scale, Offset.Zero)
                 }) {
-                    boardCache.drawStatic(this, mapper, density, scale)
                     FaceplateRenderer.drawDynamic(
                         scope = this,
                         mapper = mapper,
@@ -173,17 +185,6 @@ fun BreadboardCanvas(
                         highlightSockets = state.highlights.value,
                         viewport = viewport
                     )
-
-                    // Crisp hover targeting ring under mouse pointer
-                    if (hovered != null) {
-                        val pos = mapper.getSocketPosition(hovered)
-                        drawCircle(
-                            color = AccentCyan.copy(alpha = 0.7f),
-                            radius = 9.5f,
-                            center = pos,
-                            style = Stroke(width = 1.8f)
-                        )
-                    }
 
                     for (chip in circuit.placedChips) {
                         DipPainter.draw(
@@ -200,20 +201,50 @@ fun BreadboardCanvas(
                     }
 
                     WirePainter.draw(this, mapper, circuit, selectedWireId, viewport)
-                    drawDraftWire(mapper, state, guidePath, activeWireColor)
+                }
+            }
+
+            // Layer 3: Ultra-lightweight interactive pointer overlay (hover ring, draft wire, optional loupe).
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val scale = state.scale.value
+                val pan = state.pan.value
+                val hovered = state.hoveredSocket.value
+                val loupeState = state.loupe.value
+                val hasDraft = state.draftAnchor.value != null
+
+                if (hovered != null || hasDraft) {
+                    withTransform({
+                        translate(pan.x, pan.y)
+                        scale(scale, scale, Offset.Zero)
+                    }) {
+                        if (hovered != null) {
+                            val pos = mapper.getSocketPosition(hovered)
+                            drawCircle(
+                                color = AccentCyan.copy(alpha = 0.7f),
+                                radius = 9.5f,
+                                center = pos,
+                                style = Stroke(width = 1.8f)
+                            )
+                        }
+                        if (hasDraft) {
+                            drawDraftWire(mapper, state, guidePath, activeWireColor)
+                        }
+                    }
                 }
 
-                LoupeRenderer.draw(
-                    scope = this,
-                    state = state.loupe.value,
-                    mapper = mapper,
-                    circuit = circuit,
-                    boardCache = boardCache,
-                    pan = pan,
-                    scale = scale,
-                    density = density,
-                    selectedChipId = selectedChipId
-                )
+                if (loupeState.isVisible) {
+                    LoupeRenderer.draw(
+                        scope = this,
+                        state = loupeState,
+                        mapper = mapper,
+                        circuit = circuit,
+                        boardCache = boardCache,
+                        pan = pan,
+                        scale = scale,
+                        density = density,
+                        selectedChipId = selectedChipId
+                    )
+                }
             }
 
             TapToConnectHint(

@@ -1,8 +1,14 @@
 package com.logiclabs.feature.tools.oscilloscope
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -10,9 +16,16 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.dp
 import com.logiclabs.core.bridge.circuit.BreadboardCircuit
+import com.logiclabs.core.designsystem.theme.AccentCyan
+import com.logiclabs.core.designsystem.theme.ChassisBase
 import com.logiclabs.core.designsystem.theme.Dimens
+import com.logiclabs.core.designsystem.theme.LogicLabsType
+import com.logiclabs.core.designsystem.theme.TextSecondary
 
 /** Hard ceiling on engine steps per display frame, so a slow timebase cannot stall the UI. */
 private const val MAX_STEPS_PER_FRAME = 64
@@ -101,15 +114,33 @@ fun ScopePanel(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(Dimens.Space2)
     ) {
-        OscilloscopeView(
-            ch1Buffer = circuit.scopeCh1,
-            ch2Buffer = circuit.scopeCh2,
-            timebaseMs = settings.timePerDivMs,
-            voltsPerDiv = settings.voltsPerDiv,
-            channelMode = settings.channelMode,
-            sampleIntervalMs = settings.acquisitionIntervalMs,
-            redrawKey = frame
-        )
+        Box(modifier = Modifier.fillMaxWidth()) {
+            OscilloscopeView(
+                ch1Buffer = circuit.scopeCh1,
+                ch2Buffer = circuit.scopeCh2,
+                timebaseMs = settings.timePerDivMs,
+                voltsPerDiv = settings.voltsPerDiv,
+                channelMode = settings.channelMode,
+                sampleIntervalMs = settings.acquisitionIntervalMs,
+                redrawKey = frame
+            )
+            if (settings.probe1Socket == null && settings.probe2Socket == null) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .clip(RoundedCornerShape(Dimens.RadiusPill))
+                        .background(ChassisBase.copy(alpha = 0.86f))
+                        .border(Dimens.Hairline, AccentCyan.copy(alpha = 0.45f), RoundedCornerShape(Dimens.RadiusPill))
+                        .padding(horizontal = Dimens.Space3, vertical = 5.dp)
+                ) {
+                    Text(
+                        text = "PROBES DETACHED · PICK A CH1 / CH2 SIGNAL BELOW (USE ‹ › OR WHEEL FOR LEDs)",
+                        style = LogicLabsType.TechnicalXs,
+                        color = TextSecondary
+                    )
+                }
+            }
+        }
 
         ScopeControls(settings = settings, frequencyHz = frequencyHz)
 

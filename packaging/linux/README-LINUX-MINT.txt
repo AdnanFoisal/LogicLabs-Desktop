@@ -1,5 +1,5 @@
 ======================================================================
-  LOGIC LABS v1.1.2 — LINUX MINT EDITION (Ubuntu / Debian x64)
+  LOGIC LABS v1.1.3 — LINUX MINT EDITION (Ubuntu / Debian x64)
   K&H IDL-800A Digital Logic Trainer & AD-200 Breadboard Workstation
 ======================================================================
 
@@ -7,10 +7,10 @@ TWO WAYS TO RUN ON LINUX MINT (19 / 20 / 21 / 22 & LMDE — NO JAVA NEEDED)
 -------------------------------------------------------------------------
 
 Option A — Official .deb Installer (Recommended on Linux Mint):
-  1. Double-click "logic-labs_1.1.2_amd64.deb" in Nemo/Caja/Thunar
+  1. Double-click "logic-labs_1.1.3_amd64.deb" in Nemo/Caja/Thunar
      (opens Linux Mint's GDebi Package Installer -> click "Install Package"),
      OR run in a terminal:
-         sudo apt install ./logic-labs_1.1.2_amd64.deb
+         sudo apt install ./logic-labs_1.1.3_amd64.deb
   2. Launch "Logic Labs" from the Linux Mint Application Menu
      (Education / Programming), or run `logic-labs` from terminal.
   3. To uninstall later: `sudo apt remove logic-labs`

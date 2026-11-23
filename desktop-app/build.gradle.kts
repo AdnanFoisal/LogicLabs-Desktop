@@ -81,7 +81,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Exe, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "Logic Labs"
-            packageVersion = "1.1.2"
+            packageVersion = "1.1.3"
             description = "Digital Electronics Lab & K&H IDL-800A Breadboard Simulator for Windows and Linux"
             vendor = "Logic Labs"
             copyright = "GPL-3.0-only"
@@ -111,7 +111,7 @@ compose.desktop {
 
             linux {
                 packageName = "logic-labs"
-                debPackageVersion = "1.1.2"
+                debPackageVersion = "1.1.3"
                 menuGroup = "Education;Electronics;Development"
                 shortcut = true
                 val png = project.file("src/main/resources/icon.png")

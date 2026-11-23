@@ -11,19 +11,25 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -58,8 +64,11 @@ import androidx.compose.ui.unit.sp
 import com.logiclabs.core.designsystem.canvas.DesktopTextPaint
 import com.logiclabs.core.designsystem.canvas.TextAlignMode
 import com.logiclabs.core.designsystem.canvas.drawText
+import com.logiclabs.core.designsystem.component.DesktopVerticalScrollbar
 import com.logiclabs.core.designsystem.component.InstantSearchBar
 import com.logiclabs.core.designsystem.component.LogicIcons
+import com.logiclabs.core.designsystem.component.desktopPointerHand
+import com.logiclabs.core.designsystem.component.keyboardPageScroll
 import com.logiclabs.core.designsystem.theme.AccentCyan
 import com.logiclabs.core.designsystem.theme.AmberCore
 import com.logiclabs.core.designsystem.theme.ChassisBase
@@ -82,6 +91,7 @@ import com.logiclabs.feature.tools.feedback.Haptics
  * ANSI logic gate schematics, educational principles, and live truth tables
  * matching professional logic simulation reference designs.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CourseworkTab(
     verifiedLabIds: Set<String>,
@@ -146,123 +156,190 @@ fun CourseworkTab(
     // `allGroups.firstOrNull()?.key` initial value auto-opened the first unit card
     // every time the coursework tab appeared.
     var expandedGroupKey by remember { mutableStateOf<String?>(null) }
+    var selectedUnit by remember { mutableStateOf(0) } // 0=ALL, 1=Gates, 2=Arithmetic, 3=Sequential, 4=Combinational
+    val listState = rememberLazyListState()
 
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(
-            start = Dimens.Space3,
-            end = Dimens.Space3,
-            top = Dimens.Space2,
-            bottom = 80.dp
-        ),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+    val totalCount = unit1.size + unit3.size + unit4.size + unit2.size
+    val showUnit1 = (selectedUnit == 0 || selectedUnit == 1) && fUnit1.isNotEmpty()
+    val showUnit3 = (selectedUnit == 0 || selectedUnit == 2) && fUnit3.isNotEmpty()
+    val showUnit4 = (selectedUnit == 0 || selectedUnit == 3) && fUnit4.isNotEmpty()
+    val showUnit2 = (selectedUnit == 0 || selectedUnit == 4) && fUnit2.isNotEmpty()
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .keyboardPageScroll(listState)
     ) {
-        item(key = "coursework_search_bar") {
-            InstantSearchBar(
-                query = searchQuery,
-                onQueryChange = { searchQuery = it },
-                placeholder = "SEARCH COURSEWORK...",
-                modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)
-            )
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(end = 12.dp),
+            contentPadding = PaddingValues(
+                start = Dimens.Space3,
+                end = Dimens.Space3,
+                top = Dimens.Space2,
+                bottom = 40.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            item(key = "coursework_search_bar") {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    InstantSearchBar(
+                        query = searchQuery,
+                        onQueryChange = { searchQuery = it },
+                        placeholder = "SEARCH COURSEWORK BY GATE, LAB, OR 74XX IC...",
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    // Unit quick-filter chips let desktop users jump directly to any of the 4 curriculum units
+                    val unitChips = listOf(
+                        0 to "ALL ($totalCount)",
+                        1 to "UNIT 1 · GATES (${unit1.size})",
+                        2 to "UNIT 2 · ARITHMETIC (${unit3.size})",
+                        3 to "UNIT 3 · SEQUENTIAL (${unit4.size})",
+                        4 to "UNIT 4 · COMBINATIONAL (${unit2.size})"
+                    )
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        unitChips.forEach { (id, label) ->
+                            val picked = selectedUnit == id
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(Dimens.RadiusPill))
+                                    .background(if (picked) AmberCore else SurfaceCard)
+                                    .border(
+                                        1.dp,
+                                        if (picked) AmberCore else SurfaceCardBorder,
+                                        RoundedCornerShape(Dimens.RadiusPill)
+                                    )
+                                    .desktopPointerHand()
+                                    .clickable {
+                                        Haptics.tick()
+                                        selectedUnit = id
+                                    }
+                                    .padding(horizontal = 10.dp, vertical = 5.dp)
+                            ) {
+                                Text(
+                                    text = label,
+                                    style = LogicLabsType.SwitchPlate,
+                                    color = if (picked) ChassisBase else TextSecondary,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (searchQuery.isNotBlank() && !showUnit1 && !showUnit3 && !showUnit4 && !showUnit2) {
+                item(key = "no_coursework_results") {
+                    Text(
+                        text = "No coursework experiments matching \"$searchQuery\"",
+                        style = LogicLabsType.BodySm,
+                        color = TextTertiary,
+                        modifier = Modifier.padding(vertical = Dimens.Space4, horizontal = Dimens.Space2)
+                    )
+                }
+            }
+
+            // Unit 1
+            if (showUnit1) {
+                item(key = "header_unit1") {
+                    UnitSectionBanner(
+                        title = "UNIT 1: FUNDAMENTAL LOGIC GATES",
+                        description = "Boolean operations, universal NAND/NOR logic, XNOR and buffer stages, and multi-input gates"
+                    )
+                }
+                items(fUnit1, key = { "u1_${it.key}" }) { group ->
+                    TechnicalAccordionCard(
+                        group = group,
+                        isExpanded = expandedGroupKey == group.key,
+                        onToggleExpand = {
+                            expandedGroupKey = if (expandedGroupKey == group.key) null else group.key
+                        },
+                        isVerified = group.variations.any { it.id in verifiedLabIds },
+                        onLaunch = onLaunchLab
+                    )
+                }
+            }
+
+            // Unit 2 (Arithmetic)
+            if (showUnit3) {
+                item(key = "header_unit3") {
+                    Spacer(Modifier.height(6.dp))
+                    UnitSectionBanner(
+                        title = "UNIT 2: ARITHMETIC & ADDER CIRCUITS",
+                        description = "Half/full adders and subtractors, and the 7483 4-bit binary parallel adder"
+                    )
+                }
+                items(fUnit3, key = { "u3_${it.key}" }) { group ->
+                    TechnicalAccordionCard(
+                        group = group,
+                        isExpanded = expandedGroupKey == group.key,
+                        onToggleExpand = {
+                            expandedGroupKey = if (expandedGroupKey == group.key) null else group.key
+                        },
+                        isVerified = group.variations.any { it.id in verifiedLabIds },
+                        onLaunch = onLaunchLab
+                    )
+                }
+            }
+
+            // Unit 3 (Sequential)
+            if (showUnit4) {
+                item(key = "header_unit4") {
+                    Spacer(Modifier.height(6.dp))
+                    UnitSectionBanner(
+                        title = "UNIT 3: SEQUENTIAL LOGIC & FLIP-FLOPS",
+                        description = "Clocked bistables, D and JK flip-flops, and binary ripple counters"
+                    )
+                }
+                items(fUnit4, key = { "u4_${it.key}" }) { group ->
+                    TechnicalAccordionCard(
+                        group = group,
+                        isExpanded = expandedGroupKey == group.key,
+                        onToggleExpand = {
+                            expandedGroupKey = if (expandedGroupKey == group.key) null else group.key
+                        },
+                        isVerified = group.variations.any { it.id in verifiedLabIds },
+                        onLaunch = onLaunchLab
+                    )
+                }
+            }
+
+            // Unit 4 (Combinational / Converters)
+            if (showUnit2) {
+                item(key = "header_unit2") {
+                    Spacer(Modifier.height(6.dp))
+                    UnitSectionBanner(
+                        title = "UNIT 4: COMBINATIONAL & CONVERTER CIRCUITS",
+                        description = "Code converters, decoders, comparators, multiplexers, and D/A converters"
+                    )
+                }
+                items(fUnit2, key = { "u2_${it.key}" }) { group ->
+                    TechnicalAccordionCard(
+                        group = group,
+                        isExpanded = expandedGroupKey == group.key,
+                        onToggleExpand = {
+                            expandedGroupKey = if (expandedGroupKey == group.key) null else group.key
+                        },
+                        isVerified = group.variations.any { it.id in verifiedLabIds },
+                        onLaunch = onLaunchLab
+                    )
+                }
+            }
         }
 
-        if (searchQuery.isNotBlank() && fUnit1.isEmpty() && fUnit3.isEmpty() && fUnit4.isEmpty() && fUnit2.isEmpty()) {
-            item(key = "no_coursework_results") {
-                Text(
-                    text = "No coursework experiments matching \"$searchQuery\"",
-                    style = LogicLabsType.BodySm,
-                    color = TextTertiary,
-                    modifier = Modifier.padding(vertical = Dimens.Space4, horizontal = Dimens.Space2)
-                )
-            }
-        }
-
-        // Unit 1
-        if (fUnit1.isNotEmpty()) {
-            item(key = "header_unit1") {
-                UnitSectionBanner(
-                    title = "UNIT 1: FUNDAMENTAL LOGIC GATES",
-                    description = "Boolean operations, universal NAND/NOR logic, XNOR and buffer stages, and multi-input gates"
-                )
-            }
-            items(fUnit1, key = { "u1_${it.key}" }) { group ->
-                TechnicalAccordionCard(
-                    group = group,
-                    isExpanded = expandedGroupKey == group.key,
-                    onToggleExpand = {
-                        expandedGroupKey = if (expandedGroupKey == group.key) null else group.key
-                    },
-                    isVerified = group.variations.any { it.id in verifiedLabIds },
-                    onLaunch = onLaunchLab
-                )
-            }
-        }
-
-        // Unit 2 (Arithmetic)
-        if (fUnit3.isNotEmpty()) {
-            item(key = "header_unit3") {
-                Spacer(Modifier.height(8.dp))
-                UnitSectionBanner(
-                    title = "UNIT 2: ARITHMETIC & ADDER CIRCUITS",
-                    description = "Half/full adders and subtractors, and the 7483 4-bit binary parallel adder"
-                )
-            }
-            items(fUnit3, key = { "u3_${it.key}" }) { group ->
-                TechnicalAccordionCard(
-                    group = group,
-                    isExpanded = expandedGroupKey == group.key,
-                    onToggleExpand = {
-                        expandedGroupKey = if (expandedGroupKey == group.key) null else group.key
-                    },
-                    isVerified = group.variations.any { it.id in verifiedLabIds },
-                    onLaunch = onLaunchLab
-                )
-            }
-        }
-
-        // Unit 3 (Sequential)
-        if (fUnit4.isNotEmpty()) {
-            item(key = "header_unit4") {
-                Spacer(Modifier.height(8.dp))
-                UnitSectionBanner(
-                    title = "UNIT 3: SEQUENTIAL LOGIC & FLIP-FLOPS",
-                    description = "Clocked bistables, D and JK flip-flops, and binary ripple counters"
-                )
-            }
-            items(fUnit4, key = { "u4_${it.key}" }) { group ->
-                TechnicalAccordionCard(
-                    group = group,
-                    isExpanded = expandedGroupKey == group.key,
-                    onToggleExpand = {
-                        expandedGroupKey = if (expandedGroupKey == group.key) null else group.key
-                    },
-                    isVerified = group.variations.any { it.id in verifiedLabIds },
-                    onLaunch = onLaunchLab
-                )
-            }
-        }
-
-        // Unit 4 (Combinational / Converters)
-        if (fUnit2.isNotEmpty()) {
-            item(key = "header_unit2") {
-                Spacer(Modifier.height(8.dp))
-                UnitSectionBanner(
-                    title = "UNIT 4: COMBINATIONAL & CONVERTER CIRCUITS",
-                    description = "Code converters, decoders, comparators, multiplexers, and D/A converters"
-                )
-            }
-            items(fUnit2, key = { "u2_${it.key}" }) { group ->
-                TechnicalAccordionCard(
-                    group = group,
-                    isExpanded = expandedGroupKey == group.key,
-                    onToggleExpand = {
-                        expandedGroupKey = if (expandedGroupKey == group.key) null else group.key
-                    },
-                    isVerified = group.variations.any { it.id in verifiedLabIds },
-                    onLaunch = onLaunchLab
-                )
-            }
-        }
+        DesktopVerticalScrollbar(
+            listState = listState,
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .fillMaxHeight()
+                .padding(vertical = Dimens.Space3, horizontal = 3.dp)
+        )
     }
 }
 
@@ -349,6 +426,7 @@ private fun TechnicalAccordionCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .desktopPointerHand()
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -358,7 +436,7 @@ private fun TechnicalAccordionCard(
                         onToggleExpand()
                     }
                 )
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+                .padding(horizontal = 14.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -394,6 +472,32 @@ private fun TechnicalAccordionCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                if (activeLab.targetChips.isNotEmpty()) {
+                    Text(
+                        text = activeLab.targetChips.joinToString(" / "),
+                        style = LogicLabsType.TechnicalXs,
+                        color = AccentCyan,
+                        fontSize = 9.sp,
+                        modifier = Modifier
+                            .background(AccentCyan.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
+                            .border(Dimens.Hairline, AccentCyan.copy(alpha = 0.35f), RoundedCornerShape(4.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+
+                if (group.hasVariations) {
+                    Text(
+                        text = "${group.variations.size} BUILDS",
+                        style = LogicLabsType.TechnicalXs,
+                        color = TextTertiary,
+                        fontSize = 9.sp,
+                        modifier = Modifier
+                            .background(ChassisBase, RoundedCornerShape(4.dp))
+                            .border(Dimens.Hairline, SurfaceCardBorder, RoundedCornerShape(4.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+
                 if (isVerified) {
                     Text(
                         text = "VERIFIED",
@@ -403,6 +507,28 @@ private fun TechnicalAccordionCard(
                         modifier = Modifier
                             .background(PhosphorCore.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
                             .padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+
+                // Quick one-click launch straight onto the breadboard
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(AmberCore.copy(alpha = 0.14f))
+                        .border(Dimens.Hairline, AmberCore.copy(alpha = 0.6f), RoundedCornerShape(6.dp))
+                        .desktopPointerHand()
+                        .clickable(role = Role.Button) {
+                            Haptics.thud()
+                            onLaunch(activeLab.id)
+                        }
+                        .padding(horizontal = 9.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = "OPEN",
+                        style = LogicLabsType.SwitchPlate,
+                        color = AmberCore,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold
                     )
                 }
 
@@ -423,116 +549,150 @@ private fun TechnicalAccordionCard(
             enter = expandVertically(),
             exit = shrinkVertically()
         ) {
-            Column(
+            BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 14.dp, end = 14.dp, bottom = 14.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                    .padding(start = 14.dp, end = 14.dp, bottom = 14.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(1.dp)
-                        .background(SurfaceCardBorder)
-                )
-
-                // Technical Definition
-                Text(
-                    text = getTechnicalDescription(group.title, activeLab.subtitle),
-                    style = LogicLabsType.BodySm,
-                    color = TextSecondary,
-                    fontSize = 12.sp,
-                    lineHeight = 16.sp
-                )
-
-                // Large Vector Schematic Diagram
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(90.dp)
-                        .background(ChassisBase, RoundedCornerShape(8.dp))
-                        .border(1.dp, SurfaceCardBorder, RoundedCornerShape(8.dp)),
-                    contentAlignment = Alignment.Center
+                val sideBySide = maxWidth >= 700.dp
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    LargeSchematicDiagram(
-                        name = group.title,
-                        variationSubtitle = activeLab.subtitle
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(SurfaceCardBorder)
                     )
-                }
 
-                // Styled Truth Table
-                TruthTableSection(lab = activeLab)
+                    // Technical Definition
+                    Text(
+                        text = getTechnicalDescription(group.title, activeLab.subtitle),
+                        style = LogicLabsType.BodySm,
+                        color = TextSecondary,
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp
+                    )
 
-                // Implementations / Variations (if multiple available)
-                if (group.hasVariations) {
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(
-                            text = "IMPLEMENTATION VARIATIONS:",
-                            style = LogicLabsType.SwitchPlate,
-                            color = AccentCyan,
-                            fontSize = 9.sp
-                        )
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    // Side-by-side ANSI Schematic (fixed aspect-ratio width so gates never stretch!)
+                    // + Truth Table on desktop panes
+                    val schematicBox: @Composable (Modifier) -> Unit = { boxMod ->
+                        Box(
+                            modifier = boxMod
+                                .height(104.dp)
+                                .background(ChassisBase, RoundedCornerShape(8.dp))
+                                .border(1.dp, SurfaceCardBorder, RoundedCornerShape(8.dp)),
+                            contentAlignment = Alignment.Center
                         ) {
-                            items(group.variations) { variation ->
-                                val isSelected = variation.id == selectedVariationId
-                                val vCol = if (isSelected) AmberCore else SurfaceCardBorder
-                                val textCol = if (isSelected) ChassisBase else TextSecondary
+                            Box(
+                                modifier = Modifier
+                                    .widthIn(max = 380.dp)
+                                    .fillMaxWidth()
+                                    .height(92.dp)
+                            ) {
+                                LargeSchematicDiagram(
+                                    name = group.title,
+                                    variationSubtitle = activeLab.subtitle
+                                )
+                            }
+                        }
+                    }
 
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(if (isSelected) AmberCore else SurfaceCard)
-                                        .border(1.dp, vCol, RoundedCornerShape(6.dp))
-                                        .clickable {
-                                            Haptics.tick()
-                                            selectedVariationId = variation.id
-                                        }
-                                        .padding(horizontal = 10.dp, vertical = 5.dp)
-                                ) {
-                                    Text(
-                                        text = variation.subtitle.ifEmpty { variation.title },
-                                        style = LogicLabsType.SwitchPlate,
-                                        color = textCol,
-                                        fontSize = 10.sp
-                                    )
+                    if (sideBySide) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(14.dp),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            schematicBox(Modifier.weight(1f))
+                            Box(modifier = Modifier.weight(1.1f)) {
+                                TruthTableSection(lab = activeLab)
+                            }
+                        }
+                    } else {
+                        schematicBox(Modifier.fillMaxWidth())
+                        TruthTableSection(lab = activeLab)
+                    }
+
+                    // Implementations / Variations (if multiple available)
+                    if (group.hasVariations) {
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(
+                                text = "IMPLEMENTATION VARIATIONS:",
+                                style = LogicLabsType.SwitchPlate,
+                                color = AccentCyan,
+                                fontSize = 9.sp
+                            )
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                items(group.variations) { variation ->
+                                    val isSelected = variation.id == selectedVariationId
+                                    val vCol = if (isSelected) AmberCore else SurfaceCardBorder
+                                    val textCol = if (isSelected) ChassisBase else TextSecondary
+
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(if (isSelected) AmberCore else SurfaceCard)
+                                            .border(1.dp, vCol, RoundedCornerShape(6.dp))
+                                            .desktopPointerHand()
+                                            .clickable {
+                                                Haptics.tick()
+                                                selectedVariationId = variation.id
+                                            }
+                                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                                    ) {
+                                        Text(
+                                            text = variation.subtitle.ifEmpty { variation.title },
+                                            style = LogicLabsType.SwitchPlate,
+                                            color = textCol,
+                                            fontSize = 10.sp
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
-                }
 
-                // Dynamic Action Button
-                Button(
-                    onClick = {
-                        Haptics.thud()
-                        onLaunch(activeLab.id)
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(44.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = AmberCore,
-                        contentColor = ChassisBase
-                    ),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
+                    // Crisp right-aligned Action Button (no stretched 1100px plank)
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
                     ) {
-                        Icon(
-                            imageVector = LogicIcons.Breadboard,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Text(
-                            text = getDynamicButtonLabel(activeLab),
-                            style = LogicLabsType.SwitchPlate,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 11.sp
-                        )
+                        Button(
+                            onClick = {
+                                Haptics.thud()
+                                onLaunch(activeLab.id)
+                            },
+                            modifier = Modifier
+                                .widthIn(min = 240.dp)
+                                .height(40.dp)
+                                .desktopPointerHand(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = AmberCore,
+                                contentColor = ChassisBase
+                            ),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = LogicIcons.Breadboard,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Text(
+                                    text = getDynamicButtonLabel(activeLab),
+                                    style = LogicLabsType.SwitchPlate,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
                     }
                 }
             }

@@ -3,6 +3,7 @@ package com.logiclabs.feature.tools.oscilloscope
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,11 +16,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,7 +34,12 @@ import androidx.compose.ui.unit.sp
 import com.logiclabs.core.bridge.circuit.BreadboardCircuit
 import com.logiclabs.core.bridge.model.ElectricalLevel
 import com.logiclabs.core.bridge.topology.AD200Topology
+import com.logiclabs.core.designsystem.component.DesktopHorizontalScrollbar
+import com.logiclabs.core.designsystem.component.DesktopScrollArrowButton
+import com.logiclabs.core.designsystem.component.desktopPointerHand
+import com.logiclabs.core.designsystem.component.horizontalWheelScroll
 import com.logiclabs.core.designsystem.theme.ChassisBevelHighlight
+import kotlinx.coroutines.launch
 import com.logiclabs.core.designsystem.theme.ChassisBevelShadow
 import com.logiclabs.core.designsystem.theme.ChassisSilkscreen
 import com.logiclabs.core.designsystem.theme.Dimens
@@ -124,25 +132,53 @@ fun ProbePicker(
 
         Spacer(modifier = Modifier.height(Dimens.Space1))
 
-        LazyRow(
+        val listState = rememberLazyListState()
+        val scope = rememberCoroutineScope()
+
+        Row(
             modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(Dimens.Space1)
         ) {
-            items(sources, key = { it.name }) { source ->
-                val selected = source.socket == currentSocket
-                val live = source.socket?.let {
-                    circuit.getSocketLevel(it) == ElectricalLevel.HIGH
-                } ?: false
-                ProbeChip(
-                    name = source.name,
-                    selected = selected,
-                    live = live,
-                    hasIndicator = source.socket != null,
-                    accent = accent,
-                    onClick = { onSelect(source.socket) }
-                )
+            DesktopScrollArrowButton(
+                isLeft = true,
+                enabled = listState.canScrollBackward,
+                onClick = { scope.launch { listState.animateScrollBy(-220f) } }
+            )
+            LazyRow(
+                state = listState,
+                modifier = Modifier
+                    .weight(1f)
+                    .horizontalWheelScroll(listState),
+                horizontalArrangement = Arrangement.spacedBy(Dimens.Space1)
+            ) {
+                items(sources, key = { it.name }) { source ->
+                    val selected = source.socket == currentSocket
+                    val live = source.socket?.let {
+                        circuit.getSocketLevel(it) == ElectricalLevel.HIGH
+                    } ?: false
+                    ProbeChip(
+                        name = source.name,
+                        selected = selected,
+                        live = live,
+                        hasIndicator = source.socket != null,
+                        accent = accent,
+                        onClick = { onSelect(source.socket) }
+                    )
+                }
             }
+            DesktopScrollArrowButton(
+                isLeft = false,
+                enabled = listState.canScrollForward,
+                onClick = { scope.launch { listState.animateScrollBy(220f) } }
+            )
         }
+        DesktopHorizontalScrollbar(
+            listState = listState,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 4.dp)
+        )
     }
 }
 
@@ -158,7 +194,7 @@ private fun ProbeChip(
     Row(
         modifier = Modifier
             // Dimens.MinTouchTarget is the accessibility floor for interactive chips.
-            .heightIn(min = Dimens.MinTouchTarget)
+            .heightIn(min = 34.dp)
             .clip(RoundedCornerShape(Dimens.RadiusSm))
             .background(if (selected) SurfaceRaised else ChassisBevelShadow)
             .border(
@@ -166,6 +202,7 @@ private fun ProbeChip(
                 color = if (selected) accent.copy(alpha = 0.75f) else ChassisBevelHighlight,
                 shape = RoundedCornerShape(Dimens.RadiusSm)
             )
+            .desktopPointerHand()
             .clickable(onClick = onClick)
             .padding(horizontal = Dimens.Space2),
         verticalAlignment = Alignment.CenterVertically,

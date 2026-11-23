@@ -31,7 +31,7 @@ static int launch_jvm(
     int written = _snwprintf(
         cmdLine,
         4096,
-        L"\"%ls\" -Xms128m -Xmx768m -Dfile.encoding=UTF-8 -Dsun.java2d.dpiaware=true%ls \"-Dlogiclabs.app.dir=%ls\" -jar \"%ls\"",
+        L"\"%ls\" -Xms48m -Xmx320m -XX:+UseSerialGC -XX:MinHeapFreeRatio=15 -XX:MaxHeapFreeRatio=30 -XX:SoftRefLRUPolicyMSPerMB=50 -Dfile.encoding=UTF-8 -Dsun.java2d.dpiaware=true%ls \"-Dlogiclabs.app.dir=%ls\" -jar \"%ls\"",
         javawPath,
         renderFlag,
         exeDir,

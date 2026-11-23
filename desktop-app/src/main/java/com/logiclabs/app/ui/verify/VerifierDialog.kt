@@ -7,10 +7,13 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -47,10 +50,16 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.logiclabs.app.desktop.DesktopPlatform
 import com.logiclabs.core.data.progress.Badge
+import com.logiclabs.core.designsystem.component.DesktopHorizontalScrollbar
 import com.logiclabs.core.designsystem.component.DesktopModalDialog
+import com.logiclabs.core.designsystem.component.DesktopScrollArrowButton
+import com.logiclabs.core.designsystem.component.DesktopVerticalScrollbar
 import com.logiclabs.core.designsystem.component.InstantSearchBar
 import com.logiclabs.core.designsystem.component.LogicIcons
 import com.logiclabs.core.designsystem.component.SheetScaffold
+import com.logiclabs.core.designsystem.component.desktopPointerHand
+import com.logiclabs.core.designsystem.component.horizontalWheelScroll
+import com.logiclabs.core.designsystem.component.keyboardPageScroll
 import com.logiclabs.core.designsystem.theme.AccentCyan
 import com.logiclabs.core.designsystem.theme.AmberCore
 import com.logiclabs.core.designsystem.theme.Dimens
@@ -146,13 +155,18 @@ fun VerifierDialog(
             )
             Spacer(Modifier.height(Dimens.Space2))
 
-            LazyColumn(
-                state = bodyListState,
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f, fill = false)
-                    .heightIn(max = 520.dp)
+                    .keyboardPageScroll(bodyListState)
             ) {
+                LazyColumn(
+                    state = bodyListState,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(end = Dimens.Space3)
+                ) {
                 if (report == null) {
                     item(key = "empty-hint") { EmptyResultHint() }
                 } else {
@@ -232,6 +246,13 @@ fun VerifierDialog(
                         }
                     }
                 }
+                }
+                DesktopVerticalScrollbar(
+                    listState = bodyListState,
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .fillMaxHeight()
+                )
             }
 
             Spacer(Modifier.height(Dimens.Space3))
@@ -404,20 +425,45 @@ private fun LabSelectorStrip(
                 modifier = Modifier.padding(vertical = Dimens.Space2)
             )
         } else {
-            LazyRow(
-                state = stripState,
+            val stripScope = rememberCoroutineScope()
+            Row(
                 modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(Dimens.Space1)
             ) {
-                // allLabs, not classicLabs: the strip is how a user retargets the sweep, and with
-                // extended experiments loadable from the catalog a classic-only strip would show no
-                // selection at all for the build actually on the board.
-                items(filteredLabs, key = { it.id }) { lab ->
-                    val selected = lab.id == activeLabId ||
-                        (activeLabId == null && reportTitle == lab.title)
-                    LabTargetChip(lab = lab, selected = selected, onClick = { onSelect(lab) })
+                DesktopScrollArrowButton(
+                    isLeft = true,
+                    enabled = stripState.canScrollBackward,
+                    onClick = { stripScope.launch { stripState.animateScrollBy(-240f) } }
+                )
+                LazyRow(
+                    state = stripState,
+                    modifier = Modifier
+                        .weight(1f)
+                        .horizontalWheelScroll(stripState),
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.Space1)
+                ) {
+                    // allLabs, not classicLabs: the strip is how a user retargets the sweep, and with
+                    // extended experiments loadable from the catalog a classic-only strip would show no
+                    // selection at all for the build actually on the board.
+                    items(filteredLabs, key = { it.id }) { lab ->
+                        val selected = lab.id == activeLabId ||
+                            (activeLabId == null && reportTitle == lab.title)
+                        LabTargetChip(lab = lab, selected = selected, onClick = { onSelect(lab) })
+                    }
                 }
+                DesktopScrollArrowButton(
+                    isLeft = false,
+                    enabled = stripState.canScrollForward,
+                    onClick = { stripScope.launch { stripState.animateScrollBy(240f) } }
+                )
             }
+            DesktopHorizontalScrollbar(
+                listState = stripState,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp)
+            )
         }
     }
 }
@@ -428,7 +474,7 @@ private fun LabTargetChip(lab: LabExperiment, selected: Boolean, onClick: () -> 
     val chips = lab.targetChips.joinToString("/")
     Row(
         modifier = Modifier
-            .heightIn(min = 40.dp)
+            .heightIn(min = 38.dp)
             .clip(RoundedCornerShape(Dimens.RadiusSm))
             .background(if (selected) AccentCyan.copy(alpha = 0.18f) else SurfaceCard)
             .border(
@@ -436,6 +482,7 @@ private fun LabTargetChip(lab: LabExperiment, selected: Boolean, onClick: () -> 
                 color = if (selected) AccentCyan else GlassHairline,
                 shape = RoundedCornerShape(Dimens.RadiusSm)
             )
+            .desktopPointerHand()
             .clickable(onClick = onClick)
             .padding(horizontal = Dimens.Space2),
         verticalAlignment = Alignment.CenterVertically

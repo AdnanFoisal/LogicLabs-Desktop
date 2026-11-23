@@ -457,9 +457,8 @@ object FaceplateRenderer {
             nc.drawText("PULSE GEN", pwrCenterX, plsTop + 16f, panelTitlePaint)
             nc.drawText("DEBOUNCED", pwrCenterX, plsTop + 29f, panelSubPaint)
 
-            // 7-Segment silkscreen
-            nc.drawText("7-SEGMENT", pwrCenterX, segTop + 16f, panelTitlePaint)
-            nc.drawText("BCD INPUTS", pwrCenterX, segTop + 29f, panelSubPaint)
+            // 7-Segment silkscreen (HEX A / HEX B sit cleanly on the second row without overlapping)
+            nc.drawText("7-SEG BCD", pwrCenterX, segTop + 16f, panelTitlePaint)
             nc.drawText("IDL-800A", pwrCenterX, segTop + segHeight - 7f, panelSubPaint)
         }
     }
@@ -556,9 +555,9 @@ object FaceplateRenderer {
             nc.drawText("P", pBp.x - 15f, pBp.y + 4f, terminalLabelPaint)
             nc.drawText("~P", pBn.x + 16f, pBn.y + 4f, terminalLabelPaint)
 
-            // 7-Segment labels
-            nc.drawText("HEX A", mapper.originX - 98f, mapper.originY + 448f, terminalLabelPaint)
-            nc.drawText("HEX B", mapper.originX - 52f, mapper.originY + 448f, terminalLabelPaint)
+            // 7-Segment labels — cleanly aligned above left/right BCD columns with zero overlap
+            nc.drawText("HEX A", mapper.originX - 99f, mapper.originY + 449f, panelSubPaint)
+            nc.drawText("HEX B", mapper.originX - 51f, mapper.originY + 449f, panelSubPaint)
             val segLabels = arrayOf("A(1)", "B(2)", "C(4)", "D(8)")
             for (idx in 0..3) {
                 val yRow = mapper.originY + 465f + idx * 40f

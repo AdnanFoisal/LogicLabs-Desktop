@@ -10,6 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -55,9 +56,12 @@ import com.logiclabs.core.bridge.model.WireColor
 import com.logiclabs.core.data.settings.Settings
 import com.logiclabs.core.data.settings.ThemeMode
 import com.logiclabs.core.designsystem.component.ChamferedPanel
+import com.logiclabs.core.designsystem.component.DesktopVerticalScrollbar
 import com.logiclabs.core.designsystem.component.LogicIcons
 import com.logiclabs.core.designsystem.component.SegmentItem
 import com.logiclabs.core.designsystem.component.SegmentedControl
+import com.logiclabs.core.designsystem.component.desktopPointerHand
+import com.logiclabs.core.designsystem.component.keyboardPageScroll
 import com.logiclabs.core.designsystem.theme.AccentCyan
 import com.logiclabs.core.designsystem.theme.AmberCore
 import com.logiclabs.core.designsystem.theme.CanvasBackground
@@ -96,65 +100,14 @@ fun SettingsScreen(
     var confirmResetProgress by remember { mutableStateOf(false) }
     var showAboutCreator by remember { mutableStateOf(false) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(CanvasBackground)
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = Dimens.Space3, vertical = Dimens.Space3)
-            .padding(bottom = Dimens.Space6)
-    ) {
-        // Header: optional back control and title.
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = Dimens.Space2, vertical = Dimens.Space2),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (showBackButton) {
-                Box(
-                    modifier = Modifier
-                        .size(Dimens.MinTouchTarget)
-                        .clip(RoundedCornerShape(Dimens.RadiusMd))
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            role = Role.Button,
-                            onClick = onBack
-                        )
-                        .semantics { contentDescription = "Back to home" },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = LogicIcons.Back,
-                        contentDescription = null,
-                        tint = TextSecondary,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-            }
-            Column {
-                Text(
-                    "SETTINGS",
-                    style = LogicLabsType.DisplayLg,
-                    color = TextPrimary,
-                    maxLines = 1
-                )
-                Text(
-                    "BENCH CONFIGURATION · APPLIED IMMEDIATELY",
-                    style = LogicLabsType.SwitchPlate,
-                    color = TextTertiary,
-                    maxLines = 1
-                )
-            }
-        }
+    val scrollState = rememberScrollState()
 
+    val appearanceModule: @Composable () -> Unit = {
         SettingsModule(
             title = "APPEARANCE",
             subtitle = "Hardware instrument chassis styling",
             icon = LogicIcons.Contrast
         ) {
-            // Always show the currently selected theme at the top as a summary
             val currentOption = THEME_OPTIONS.find { it.mode == settings.themeMode }
             if (currentOption != null) {
                 Text(
@@ -166,7 +119,6 @@ fun SettingsScreen(
                 )
             }
 
-            // Warm, classic dark lab finishes.
             ThemeCategory(
                 title = "DARK INSTRUMENTS",
                 subtitle = themeCountLabel(DARK_THEMES),
@@ -177,9 +129,6 @@ fun SettingsScreen(
 
             Spacer(Modifier.height(Dimens.Space2))
 
-            // Cool-toned dark precision finishes. HP Slate and Titanium Frost are dark
-            // chassis colours (see their swatches) — an earlier "LIGHT & PRECISION"
-            // bucket put them under a light label they do not have.
             ThemeCategory(
                 title = "MIDNIGHT PRECISION",
                 subtitle = themeCountLabel(COOL_THEMES),
@@ -190,7 +139,6 @@ fun SettingsScreen(
 
             Spacer(Modifier.height(Dimens.Space2))
 
-            // High-contrast accent finishes.
             ThemeCategory(
                 title = "SPECIALTY",
                 subtitle = themeCountLabel(ACCENT_THEMES),
@@ -201,7 +149,6 @@ fun SettingsScreen(
 
             Spacer(Modifier.height(Dimens.Space2))
 
-            // The single daylight finish.
             ThemeCategory(
                 title = "DAYLIGHT",
                 subtitle = themeCountLabel(LIGHT_THEMES),
@@ -212,7 +159,6 @@ fun SettingsScreen(
 
             Spacer(Modifier.height(Dimens.Space2))
 
-            // System Default always visible
             val systemOption = THEME_OPTIONS.find { it.mode == ThemeMode.SYSTEM }
             if (systemOption != null) {
                 ThemeCard(
@@ -222,10 +168,12 @@ fun SettingsScreen(
                 )
             }
         }
+    }
 
+    val audioModule: @Composable () -> Unit = {
         SettingsModule(
             title = "AUDIO FEEDBACK",
-            subtitle = "Synthesized console sound",
+            subtitle = "Synthesized console sound (async low-latency)",
             icon = LogicIcons.Speaker
         ) {
             SettingsToggleRow(
@@ -235,7 +183,9 @@ fun SettingsScreen(
                 onToggle = { container.settings.setSoundEnabled(it) }
             )
         }
+    }
 
+    val controlsModule: @Composable () -> Unit = {
         if (onOpenControlsGuide != null) {
             SettingsModule(
                 title = "CONTROLS & KEYBOARD SHORTCUTS",
@@ -250,7 +200,9 @@ fun SettingsScreen(
                 )
             }
         }
+    }
 
+    val renderingModule: @Composable () -> Unit = {
         SettingsModule(
             title = "SIGNAL RENDERING",
             subtitle = "How live logic levels are drawn",
@@ -269,7 +221,9 @@ fun SettingsScreen(
                 onToggle = { container.settings.setBloomEffects(it) }
             )
         }
+    }
 
+    val workspaceModule: @Composable () -> Unit = {
         SettingsModule(
             title = "WORKSPACE",
             subtitle = "Defaults for new jumpers",
@@ -306,7 +260,9 @@ fun SettingsScreen(
                 modifier = Modifier.fillMaxWidth()
             )
         }
+    }
 
+    val dataModule: @Composable () -> Unit = {
         SettingsModule(
             title = "DATA & STORAGE",
             subtitle = if (container.isPortableMode) {
@@ -354,7 +310,9 @@ fun SettingsScreen(
                 onClick = { confirmResetProgress = true }
             )
         }
+    }
 
+    val aboutModule: @Composable () -> Unit = {
         SettingsModule(
             title = "ABOUT",
             subtitle = "Mission, creator backstory & digital twin",
@@ -369,13 +327,111 @@ fun SettingsScreen(
             Spacer(Modifier.height(Dimens.Space2))
             AboutRow(
                 label = "APP",
-                value = "Logic Labs v1.1.2 · ${DesktopPlatform.platformEditionLabel.lowercase().replaceFirstChar { it.uppercase() }}"
+                value = "Logic Labs v1.1.3 · ${DesktopPlatform.platformEditionLabel.lowercase().replaceFirstChar { it.uppercase() }}"
             )
             AboutRow(label = "MACHINE", value = "K&H IDL-800A Digital Lab")
             AboutRow(label = "CREATOR", value = "Adnan Foisal (CUET CSE)")
             AboutRow(label = "NETWORK", value = "None. The bench is fully offline.")
             AboutRow(label = "ACCOUNTS", value = "None. Nothing leaves this PC.")
         }
+    }
+
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(CanvasBackground)
+            .keyboardPageScroll(scrollState)
+    ) {
+        val isTwoColumn = maxWidth >= 900.dp
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .padding(start = Dimens.Space4, end = Dimens.Space5, top = Dimens.Space3, bottom = Dimens.Space5)
+        ) {
+            // Header: optional back control and title.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = Dimens.Space1, vertical = Dimens.Space2),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (showBackButton) {
+                    Box(
+                        modifier = Modifier
+                            .size(Dimens.MinTouchTarget)
+                            .clip(RoundedCornerShape(Dimens.RadiusMd))
+                            .desktopPointerHand()
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                role = Role.Button,
+                                onClick = onBack
+                            )
+                            .semantics { contentDescription = "Back to home" },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = LogicIcons.Back,
+                            contentDescription = null,
+                            tint = TextSecondary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+                Column {
+                    Text(
+                        "SETTINGS",
+                        style = LogicLabsType.DisplayLg,
+                        color = TextPrimary,
+                        maxLines = 1
+                    )
+                    Text(
+                        "BENCH CONFIGURATION · APPLIED IMMEDIATELY",
+                        style = LogicLabsType.SwitchPlate,
+                        color = TextTertiary,
+                        maxLines = 1
+                    )
+                }
+            }
+
+            if (isTwoColumn) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.Space3),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        appearanceModule()
+                        dataModule()
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        audioModule()
+                        controlsModule()
+                        renderingModule()
+                        workspaceModule()
+                        aboutModule()
+                    }
+                }
+            } else {
+                appearanceModule()
+                audioModule()
+                controlsModule()
+                renderingModule()
+                workspaceModule()
+                dataModule()
+                aboutModule()
+            }
+        }
+
+        DesktopVerticalScrollbar(
+            scrollState = scrollState,
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .fillMaxHeight()
+                .padding(vertical = Dimens.Space3, horizontal = 3.dp)
+        )
     }
 
     if (confirmResetPreferences) {
@@ -1116,57 +1172,69 @@ private fun AboutCreatorDialog(onDismiss: () -> Unit) {
         message = "Adnan Foisal — CUET CSE. Why Logic Labs exists, in three parts.",
         content = {
             Spacer(Modifier.height(Dimens.Space3))
-            Column(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 380.dp)
-                    .verticalScroll(scrollState),
-                verticalArrangement = Arrangement.spacedBy(Dimens.Space3)
             ) {
-                Text(
-                    text = "Hi! I'm Adnan Foisal, currently studying Computer Science & Engineering at Chittagong University of Engineering and Technology (CUET).",
-                    style = LogicLabsType.BodySm,
-                    color = TextPrimary
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(scrollState)
+                        .padding(end = Dimens.Space3),
+                    verticalArrangement = Arrangement.spacedBy(Dimens.Space3)
+                ) {
+                    Text(
+                        text = "Hi! I'm Adnan Foisal, currently studying Computer Science & Engineering at Chittagong University of Engineering and Technology (CUET).",
+                        style = LogicLabsType.BodySm,
+                        color = TextPrimary
+                    )
+
+                    Column(verticalArrangement = Arrangement.spacedBy(Dimens.Space1)) {
+                        Text(
+                            text = "ORIGIN & LAB MOTIVATION",
+                            style = LogicLabsType.SwitchPlate,
+                            color = AmberCore
+                        )
+                        Text(
+                            text = "During our university coursework, I always felt frustrated with the tight time limits in hardware electronics labs. In a group setting, it was nearly impossible for every member to get hands-on time with the physical kit, wire up the day's experiment, and test the circuit before the lab session ended.",
+                            style = LogicLabsType.BodySm,
+                            color = TextSecondary
+                        )
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(Dimens.Space1)) {
+                        Text(
+                            text = "THE DIGITAL TWIN VISION",
+                            style = LogicLabsType.SwitchPlate,
+                            color = AccentCyan
+                        )
+                        Text(
+                            text = "When I looked for existing circuit simulator apps and websites, none matched our actual lab trainer kit. Their breadboard layouts, jumper wiring rules, and power rail mechanics were completely different from the real equipment we used. I decided to build a true customized digital twin of the K&H IDL-800A trainer kit that would look and behave exactly like real life, letting anyone practice beforehand and implement experiments with total confidence.",
+                            style = LogicLabsType.BodySm,
+                            color = TextSecondary
+                        )
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(Dimens.Space1)) {
+                        Text(
+                            text = "ARCHITECTURE & CRAFT",
+                            style = LogicLabsType.SwitchPlate,
+                            color = PhosphorCore
+                        )
+                        Text(
+                            text = "Logic Labs is built completely offline with zero telemetry or network dependencies. Powered by a discrete-event digital logic simulation engine in pure Kotlin and zero-allocation 2.5D Jetpack Compose canvas rendering, it replicates the authentic AD-200 tie-point topology, stepped clock, debounced pulses, and 74xx IC logic.",
+                            style = LogicLabsType.BodySm,
+                            color = TextSecondary
+                        )
+                    }
+                }
+                DesktopVerticalScrollbar(
+                    scrollState = scrollState,
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .fillMaxHeight()
                 )
-
-                Column(verticalArrangement = Arrangement.spacedBy(Dimens.Space1)) {
-                    Text(
-                        text = "ORIGIN & LAB MOTIVATION",
-                        style = LogicLabsType.SwitchPlate,
-                        color = AmberCore
-                    )
-                    Text(
-                        text = "During our university coursework, I always felt frustrated with the tight time limits in hardware electronics labs. In a group setting, it was nearly impossible for every member to get hands-on time with the physical kit, wire up the day's experiment, and test the circuit before the lab session ended.",
-                        style = LogicLabsType.BodySm,
-                        color = TextSecondary
-                    )
-                }
-
-                Column(verticalArrangement = Arrangement.spacedBy(Dimens.Space1)) {
-                    Text(
-                        text = "THE DIGITAL TWIN VISION",
-                        style = LogicLabsType.SwitchPlate,
-                        color = AccentCyan
-                    )
-                    Text(
-                        text = "When I looked for existing circuit simulator apps and websites, none matched our actual lab trainer kit. Their breadboard layouts, jumper wiring rules, and power rail mechanics were completely different from the real equipment we used. I decided to build a true customized digital twin of the K&H IDL-800A trainer kit that would look and behave exactly like real life, letting anyone practice beforehand and implement experiments with total confidence.",
-                        style = LogicLabsType.BodySm,
-                        color = TextSecondary
-                    )
-                }
-
-                Column(verticalArrangement = Arrangement.spacedBy(Dimens.Space1)) {
-                    Text(
-                        text = "ARCHITECTURE & CRAFT",
-                        style = LogicLabsType.SwitchPlate,
-                        color = PhosphorCore
-                    )
-                    Text(
-                        text = "Logic Labs is built completely offline with zero telemetry or network dependencies. Powered by a discrete-event digital logic simulation engine in pure Kotlin and zero-allocation 2.5D Jetpack Compose canvas rendering, it replicates the authentic AD-200 tie-point topology, stepped clock, debounced pulses, and 74xx IC logic.",
-                        style = LogicLabsType.BodySm,
-                        color = TextSecondary
-                    )
-                }
             }
         },
         actions = {

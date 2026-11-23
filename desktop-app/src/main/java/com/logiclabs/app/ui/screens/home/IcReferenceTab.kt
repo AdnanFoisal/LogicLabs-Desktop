@@ -6,12 +6,14 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -23,6 +25,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -46,7 +49,10 @@ import com.logiclabs.core.bridge.catalog.ChipModel
 import com.logiclabs.core.bridge.catalog.TTLChipCatalog
 import com.logiclabs.app.ui.component.DipPackageDiagram
 import com.logiclabs.core.bridge.model.PinRole
+import com.logiclabs.core.designsystem.component.DesktopVerticalScrollbar
 import com.logiclabs.core.designsystem.component.InstantSearchBar
+import com.logiclabs.core.designsystem.component.desktopPointerHand
+import com.logiclabs.core.designsystem.component.keyboardPageScroll
 import com.logiclabs.core.designsystem.theme.AccentCyan
 import com.logiclabs.core.designsystem.theme.AmberCore
 import com.logiclabs.core.designsystem.theme.ChassisBase
@@ -285,196 +291,256 @@ fun IcReferenceTab(
             ?: CHIP_CATALOG_SPECS.first()
     }
 
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(
-            start = Dimens.Space4,
-            end = Dimens.Space4,
-            top = Dimens.Space3,
-            bottom = 40.dp
-        ),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+    val listState = rememberLazyListState()
+
+    BoxWithConstraints(
+        modifier = modifier
+            .fillMaxSize()
+            .keyboardPageScroll(listState)
     ) {
-        item(key = "spec_selector") {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                InstantSearchBar(
-                    query = searchQuery,
-                    onQueryChange = { searchQuery = it },
-                    placeholder = "SEARCH IC REFERENCE (E.G. 7400, ADDER, FLIP-FLOP)...",
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Text(
-                    text = if (searchQuery.isBlank()) "74XX IC CATALOG (${CHIP_CATALOG_SPECS.size})" else "74XX IC CATALOG (${filteredSpecs.size})",
-                    style = LogicLabsType.SwitchPlate,
-                    color = AmberCore,
-                    fontSize = 11.sp,
-                    letterSpacing = 1.sp
-                )
-
-                if (filteredSpecs.isEmpty()) {
-                    Text(
-                        text = "No ICs matching \"$searchQuery\"",
-                        style = LogicLabsType.BodySm,
-                        color = TextTertiary,
-                        modifier = Modifier.padding(vertical = Dimens.Space2)
+        val isWide = maxWidth >= 760.dp
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(end = 12.dp),
+            contentPadding = PaddingValues(
+                start = Dimens.Space4,
+                end = Dimens.Space3,
+                top = Dimens.Space3,
+                bottom = 32.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item(key = "spec_selector") {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    InstantSearchBar(
+                        query = searchQuery,
+                        onQueryChange = { searchQuery = it },
+                        placeholder = "SEARCH IC REFERENCE (E.G. 7400, ADDER, FLIP-FLOP)...",
+                        modifier = Modifier.fillMaxWidth()
                     )
-                } else {
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        filteredSpecs.forEach { spec ->
-                            val isSelected = spec.partNumber == currentSpec.partNumber
-                            val bgCol = if (isSelected) AmberCore else SurfaceCard
-                            val textCol = if (isSelected) ChassisBase else TextPrimary
-                            val borderCol = if (isSelected) AmberCore else SurfaceCardBorder
 
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(bgCol)
-                                    .border(1.dp, borderCol, RoundedCornerShape(8.dp))
-                                    .clickable {
-                                        Haptics.tick()
-                                        selectedPart = spec.partNumber
-                                    }
-                                    .padding(horizontal = 14.dp, vertical = 8.dp)
-                            ) {
-                                Text(
-                                    text = spec.partNumber,
-                                    style = LogicLabsType.SwitchPlate,
-                                    color = textCol,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp
-                                )
+                    Text(
+                        text = if (searchQuery.isBlank()) "74XX IC CATALOG (${CHIP_CATALOG_SPECS.size})" else "74XX IC CATALOG (${filteredSpecs.size})",
+                        style = LogicLabsType.SwitchPlate,
+                        color = AmberCore,
+                        fontSize = 11.sp,
+                        letterSpacing = 1.sp
+                    )
+
+                    if (filteredSpecs.isEmpty()) {
+                        Text(
+                            text = "No ICs matching \"$searchQuery\"",
+                            style = LogicLabsType.BodySm,
+                            color = TextTertiary,
+                            modifier = Modifier.padding(vertical = Dimens.Space2)
+                        )
+                    } else {
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            filteredSpecs.forEach { spec ->
+                                val isSelected = spec.partNumber == currentSpec.partNumber
+                                val bgCol = if (isSelected) AmberCore else SurfaceCard
+                                val textCol = if (isSelected) ChassisBase else TextPrimary
+                                val borderCol = if (isSelected) AmberCore else SurfaceCardBorder
+
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(bgCol)
+                                        .border(1.dp, borderCol, RoundedCornerShape(8.dp))
+                                        .desktopPointerHand()
+                                        .clickable {
+                                            Haptics.tick()
+                                            selectedPart = spec.partNumber
+                                        }
+                                        .padding(horizontal = 14.dp, vertical = 7.dp)
+                                ) {
+                                    Text(
+                                        text = spec.partNumber,
+                                        style = LogicLabsType.SwitchPlate,
+                                        color = textCol,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
-        }
 
-        // Active Chip Details Card
-        item(key = "active_chip_card") {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(SurfaceCard)
-                    .border(1.dp, SurfaceCardBorder, RoundedCornerShape(10.dp))
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+            // Active Chip Details Card
+            item(key = "active_chip_card") {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(SurfaceCard)
+                        .border(1.dp, SurfaceCardBorder, RoundedCornerShape(10.dp))
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "SN${currentSpec.partNumber}N",
+                                style = LogicLabsType.TitleMd,
+                                color = AmberCore,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = currentSpec.name,
+                                style = LogicLabsType.BodySm,
+                                color = TextPrimary,
+                                fontSize = 13.sp
+                            )
+                        }
+
                         Text(
-                            text = "SN${currentSpec.partNumber}N",
-                            style = LogicLabsType.TitleMd,
-                            color = AmberCore,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = currentSpec.name,
-                            style = LogicLabsType.BodySm,
-                            color = TextPrimary,
-                            fontSize = 13.sp
+                            text = "DIP-${currentSpec.pinCount}",
+                            style = LogicLabsType.SwitchPlate,
+                            color = AccentCyan,
+                            fontSize = 10.sp,
+                            modifier = Modifier
+                                .background(AccentCyan.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
                         )
                     }
 
                     Text(
-                        text = "DIP-${currentSpec.pinCount}",
-                        style = LogicLabsType.SwitchPlate,
-                        color = AccentCyan,
-                        fontSize = 10.sp,
-                        modifier = Modifier
-                            .background(AccentCyan.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                        text = currentSpec.description,
+                        style = LogicLabsType.BodySm,
+                        color = TextSecondary,
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp
                     )
-                }
 
-                Text(
-                    text = currentSpec.description,
-                    style = LogicLabsType.BodySm,
-                    color = TextSecondary,
-                    fontSize = 12.sp,
-                    lineHeight = 16.sp
-                )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(SurfaceCardBorder)
+                    )
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(1.dp)
-                        .background(SurfaceCardBorder)
-                )
+                    // Side-by-side DIP Pinout Diagram + TTL Electrical Specs on desktop screens
+                    if (isWide) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            Column(
+                                modifier = Modifier.weight(1.15f),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = "DIP-${currentSpec.pinCount} DUAL IN-LINE PACKAGE (HORIZONTAL):",
+                                    style = LogicLabsType.SwitchPlate,
+                                    color = AmberCore,
+                                    fontSize = 10.sp
+                                )
+                                HorizontalDipPinoutDiagram(
+                                    pinCount = currentSpec.pinCount,
+                                    labels = currentSpec.pinLabels,
+                                    roles = currentSpec.pinRoles,
+                                    partNumber = currentSpec.partNumber
+                                )
+                            }
 
-                // Package Pinout Diagram
-                Text(
-                    text = "DIP-${currentSpec.pinCount} DUAL IN-LINE PACKAGE (HORIZONTAL):",
-                    style = LogicLabsType.SwitchPlate,
-                    color = AmberCore,
-                    fontSize = 10.sp
-                )
+                            Column(
+                                modifier = Modifier.weight(0.95f),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = "TTL ELECTRICAL SPECIFICATIONS:",
+                                    style = LogicLabsType.SwitchPlate,
+                                    color = AccentCyan,
+                                    fontSize = 10.sp
+                                )
+                                TtlSpecsGrid(spec = currentSpec)
+                            }
+                        }
+                    } else {
+                        Text(
+                            text = "DIP-${currentSpec.pinCount} DUAL IN-LINE PACKAGE (HORIZONTAL):",
+                            style = LogicLabsType.SwitchPlate,
+                            color = AmberCore,
+                            fontSize = 10.sp
+                        )
+                        HorizontalDipPinoutDiagram(
+                            pinCount = currentSpec.pinCount,
+                            labels = currentSpec.pinLabels,
+                            roles = currentSpec.pinRoles,
+                            partNumber = currentSpec.partNumber
+                        )
+                        Text(
+                            text = "TTL ELECTRICAL SPECIFICATIONS:",
+                            style = LogicLabsType.SwitchPlate,
+                            color = AccentCyan,
+                            fontSize = 10.sp
+                        )
+                        TtlSpecsGrid(spec = currentSpec)
+                    }
 
-                HorizontalDipPinoutDiagram(
-                    pinCount = currentSpec.pinCount,
-                    labels = currentSpec.pinLabels,
-                    roles = currentSpec.pinRoles,
-                    partNumber = currentSpec.partNumber
-                )
-
-                // Internal Gates & I/O Breakdown
-                GateMappingSection(spec = currentSpec)
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(1.dp)
-                        .background(SurfaceCardBorder)
-                )
-
-                // Electrical Specifications
-                Text(
-                    text = "TTL ELECTRICAL SPECIFICATIONS:",
-                    style = LogicLabsType.SwitchPlate,
-                    color = AccentCyan,
-                    fontSize = 10.sp
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    SpecPill(label = "VCC SUPPLY", value = "4.75V – 5.25V")
-                    SpecPill(label = "PROP DELAY", value = "${currentSpec.propDelayNs} ns")
-                    SpecPill(label = "FAN-OUT", value = "${currentSpec.fanOut} TTL")
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    SpecPill(label = "VIL (MAX)", value = "0.8 V (LOW)")
-                    SpecPill(label = "VIH (MIN)", value = "2.0 V (HIGH)")
-                    SpecPill(label = "LOGIC FAMILY", value = "Standard TTL")
+                    // Internal Gates & I/O Breakdown (2-column grid on desktop)
+                    GateMappingSection(spec = currentSpec, twoColumns = isWide)
                 }
             }
+        }
+
+        DesktopVerticalScrollbar(
+            listState = listState,
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .fillMaxHeight()
+                .padding(vertical = Dimens.Space3, horizontal = 3.dp)
+        )
+    }
+}
+
+@Composable
+private fun TtlSpecsGrid(spec: IcChipSpec) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            SpecPill(label = "VCC SUPPLY", value = "4.75V – 5.25V", modifier = Modifier.weight(1f))
+            SpecPill(label = "PROP DELAY", value = "${spec.propDelayNs} ns", modifier = Modifier.weight(1f))
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            SpecPill(label = "FAN-OUT", value = "${spec.fanOut} TTL", modifier = Modifier.weight(1f))
+            SpecPill(label = "LOGIC FAMILY", value = "Standard TTL", modifier = Modifier.weight(1f))
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            SpecPill(label = "VIL (MAX)", value = "0.8 V (LOW)", modifier = Modifier.weight(1f))
+            SpecPill(label = "VIH (MIN)", value = "2.0 V (HIGH)", modifier = Modifier.weight(1f))
         }
     }
 }
 
 @Composable
-private fun SpecPill(label: String, value: String) {
+private fun SpecPill(label: String, value: String, modifier: Modifier = Modifier) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .background(ChassisBase, RoundedCornerShape(6.dp))
             .border(1.dp, SurfaceCardBorder, RoundedCornerShape(6.dp))
-            .padding(horizontal = 8.dp, vertical = 6.dp)
+            .padding(horizontal = 10.dp, vertical = 7.dp)
     ) {
         Text(
             text = label,
@@ -501,11 +567,6 @@ private fun pinRoleBadge(role: PinRole): Pair<String, Color> = when (role) {
     else -> "IN" to AccentCyan
 }
 
-/**
- * The physical package diagram, shared with the pinout inspector: a bench-accurate
- * DIP (epoxy gradient, gull-wing leads with shoulders, index notch, pin-1 dimple,
- * laser-style silkscreen) with on-body pin numbers and role-coded names at the leads.
- */
 @Composable
 private fun HorizontalDipPinoutDiagram(
     pinCount: Int,
@@ -523,12 +584,8 @@ private fun HorizontalDipPinoutDiagram(
     )
 }
 
-/**
- * Technical breakdown of each internal gate with its exact input and output pins,
- * generated from the catalog model.
- */
 @Composable
-private fun GateMappingSection(spec: IcChipSpec) {
+private fun GateMappingSection(spec: IcChipSpec, twoColumns: Boolean = false) {
     if (spec.gateMappings.isEmpty()) return
 
     Column(
@@ -549,59 +606,77 @@ private fun GateMappingSection(spec: IcChipSpec) {
                 .background(ChassisBase)
                 .border(1.dp, SurfaceCardBorder, RoundedCornerShape(8.dp))
                 .padding(8.dp),
-            verticalArrangement = Arrangement.spacedBy(5.dp)
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            spec.gateMappings.forEach { mapping ->
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(SurfaceCard, RoundedCornerShape(6.dp))
-                        .padding(horizontal = 10.dp, vertical = 6.dp),
-                    verticalArrangement = Arrangement.spacedBy(3.dp)
-                ) {
+            if (twoColumns && spec.gateMappings.size > 1) {
+                spec.gateMappings.chunked(2).forEach { pair ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Text(
-                            text = mapping.title,
-                            style = LogicLabsType.SwitchPlate,
-                            color = AmberCore,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        if (mapping.expression.isNotEmpty()) {
-                            Text(
-                                text = mapping.expression,
-                                style = LogicLabsType.SwitchPlate,
-                                color = TextSecondary,
-                                fontSize = 9.sp,
-                                fontFamily = FontFamily.Monospace
-                            )
+                        pair.forEach { mapping ->
+                            GateMappingTile(mapping = mapping, modifier = Modifier.weight(1f))
                         }
-                    }
-                    if (mapping.outputPins.isNotEmpty()) {
-                        Text(
-                            text = "OUT: ${mapping.output}",
-                            style = LogicLabsType.SwitchPlate,
-                            color = AmberCore,
-                            fontSize = 9.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
-                    if (mapping.inputPins.isNotEmpty()) {
-                        Text(
-                            text = "INPUTS: ${mapping.inputs}",
-                            style = LogicLabsType.SwitchPlate,
-                            color = AccentCyan,
-                            fontSize = 9.5.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
+                        if (pair.size == 1) Spacer(Modifier.weight(1f))
                     }
                 }
+            } else {
+                spec.gateMappings.forEach { mapping ->
+                    GateMappingTile(mapping = mapping, modifier = Modifier.fillMaxWidth())
+                }
             }
+        }
+    }
+}
+
+@Composable
+private fun GateMappingTile(mapping: GateMapping, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .background(SurfaceCard, RoundedCornerShape(6.dp))
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = mapping.title,
+                style = LogicLabsType.SwitchPlate,
+                color = AmberCore,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold
+            )
+            if (mapping.expression.isNotEmpty()) {
+                Text(
+                    text = mapping.expression,
+                    style = LogicLabsType.SwitchPlate,
+                    color = TextSecondary,
+                    fontSize = 9.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+        }
+        if (mapping.outputPins.isNotEmpty()) {
+            Text(
+                text = "OUT: ${mapping.output}",
+                style = LogicLabsType.SwitchPlate,
+                color = AmberCore,
+                fontSize = 9.5.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+        if (mapping.inputPins.isNotEmpty()) {
+            Text(
+                text = "INPUTS: ${mapping.inputs}",
+                style = LogicLabsType.SwitchPlate,
+                color = AccentCyan,
+                fontSize = 9.5.sp,
+                fontFamily = FontFamily.Monospace
+            )
         }
     }
 }

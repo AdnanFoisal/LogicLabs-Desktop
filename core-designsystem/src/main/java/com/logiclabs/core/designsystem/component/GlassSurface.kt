@@ -11,27 +11,18 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.asComposeRenderEffect
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import com.logiclabs.core.designsystem.theme.Dimens
 import com.logiclabs.core.designsystem.theme.GlassHairline
 import com.logiclabs.core.designsystem.theme.GlassSpecular
 import com.logiclabs.core.designsystem.theme.GlassSurfaceColor
-import org.jetbrains.skia.FilterTileMode
-import org.jetbrains.skia.ImageFilter
-
-private val SpecularGradient = Brush.verticalGradient(
-    colors = listOf(GlassSpecular, Color.Transparent)
-)
-
-private val DesktopBlurEffect = runCatching {
-    ImageFilter.makeBlur(16f, 16f, FilterTileMode.DECAL).asComposeRenderEffect()
-}.getOrNull()
 
 /**
- * Frosted panel used for floating HUD chrome (command bar, context ribbon, modals).
- * Uses Skia's ImageFilter blur on the specular backdrop layer only so foreground text stays razor sharp.
+ * Sleek translucent hardware surface used for floating HUD chrome (command bar, zoom bar, ribbons).
+ *
+ * Intentionally avoids per-frame Skia Gaussian backdrop blurs (`ImageFilter.makeBlur`) so low-RAM
+ * desktops and integrated/software GPUs render toolbars with zero frame-time penalty while preserving
+ * the crisp top specular sheen and hairline bezel.
  */
 @Composable
 fun GlassSurface(
@@ -39,6 +30,9 @@ fun GlassSurface(
     shape: Shape = RoundedCornerShape(Dimens.RadiusLg),
     content: @Composable BoxScope.() -> Unit
 ) {
+    val specular = Brush.verticalGradient(
+        colors = listOf(GlassSpecular, Color.Transparent)
+    )
     Box(
         modifier = modifier
             .clip(shape)
@@ -48,14 +42,7 @@ fun GlassSurface(
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .then(
-                    if (DesktopBlurEffect != null) {
-                        Modifier.graphicsLayer { renderEffect = DesktopBlurEffect }
-                    } else {
-                        Modifier
-                    }
-                )
-                .background(SpecularGradient)
+                .background(specular)
         )
         content()
     }

@@ -1,11 +1,5 @@
 package com.logiclabs.app.ui.screens.home
 
-import androidx.compose.animation.core.EaseInOutQuad
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -21,12 +15,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.logiclabs.core.designsystem.component.LogicIcons
+import com.logiclabs.core.designsystem.component.desktopPointerHand
 import com.logiclabs.core.designsystem.theme.AccentCyan
 import com.logiclabs.core.designsystem.theme.AmberCore
 import com.logiclabs.core.designsystem.theme.ChassisBase
@@ -66,6 +62,8 @@ enum class HomeTab(
  * Left desktop workstation sidebar rail replacing the mobile bottom navigation bar.
  * Displays brand identity, quick New Circuit launch, keyboard-accessible tabs (`Ctrl+1..4`),
  * and direct access to the Controls & Shortcuts Guide (`F1`).
+ *
+ * Zero continuous 60 FPS animations — stays at 0% idle CPU when resting on the Home Hub.
  */
 @Composable
 fun DesktopHomeSidebar(
@@ -76,17 +74,6 @@ fun DesktopHomeSidebar(
     isPortableMode: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val transition = rememberInfiniteTransition(label = "sidebarReadyPulse")
-    val pulseAlpha by transition.animateFloat(
-        initialValue = 0.45f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = EaseInOutQuad),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulseAlpha"
-    )
-
     Row(modifier = modifier.fillMaxHeight().width(228.dp)) {
         Column(
             modifier = Modifier
@@ -96,146 +83,155 @@ fun DesktopHomeSidebar(
                 .padding(horizontal = Dimens.Space3, vertical = Dimens.Space4),
             verticalArrangement = Arrangement.spacedBy(Dimens.Space2)
         ) {
-            // Brand header
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = "LOGIC LABS",
-                        style = LogicLabsType.TitleMd,
-                        color = TextPrimary,
-                        letterSpacing = 1.2.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+            // Scrollable upper navigation section prevents clipping on short windows (560dp height)
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(Dimens.Space2)
+            ) {
+                // Brand header
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Row(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(Dimens.RadiusPill))
-                            .background(PhosphorCore.copy(alpha = 0.12f))
-                            .border(
-                                1.dp,
-                                PhosphorCore.copy(alpha = pulseAlpha * 0.6f),
-                                RoundedCornerShape(Dimens.RadiusPill)
-                            )
-                            .padding(horizontal = 6.dp, vertical = 2.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(5.dp)
-                                .clip(CircleShape)
-                                .background(PhosphorCore.copy(alpha = pulseAlpha))
-                        )
                         Text(
-                            text = "READY",
-                            style = LogicLabsType.TechnicalXs,
-                            color = PhosphorCore,
-                            fontSize = 8.sp,
+                            text = "LOGIC LABS",
+                            style = LogicLabsType.TitleMd,
+                            color = TextPrimary,
+                            letterSpacing = 1.2.sp,
                             fontWeight = FontWeight.Bold
                         )
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(Dimens.RadiusPill))
+                                .background(PhosphorCore.copy(alpha = 0.14f))
+                                .border(
+                                    1.dp,
+                                    PhosphorCore.copy(alpha = 0.55f),
+                                    RoundedCornerShape(Dimens.RadiusPill)
+                                )
+                                .padding(horizontal = 6.dp, vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(5.dp)
+                                    .clip(CircleShape)
+                                    .background(PhosphorCore)
+                            )
+                            Text(
+                                text = "READY",
+                                style = LogicLabsType.TechnicalXs,
+                                color = PhosphorCore,
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
+                    Text(
+                        text = "IDL-800A WORKSTATION",
+                        style = LogicLabsType.TechnicalXs,
+                        color = TextTertiary
+                    )
                 }
-                Text(
-                    text = "IDL-800A WORKSTATION",
-                    style = LogicLabsType.TechnicalXs,
-                    color = TextTertiary
-                )
-            }
 
-            Spacer(Modifier.height(Dimens.Space1))
+                Spacer(Modifier.height(Dimens.Space1))
 
-            // Primary CTA: New Circuit
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(Dimens.RadiusMd))
-                    .background(AmberCore)
-                    .clickable(role = Role.Button) {
-                        Haptics.thud()
-                        onNewCircuit()
-                    }
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Icon(
-                    imageVector = LogicIcons.Breadboard,
-                    contentDescription = null,
-                    tint = ChassisBase,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = "NEW CIRCUIT",
-                    style = LogicLabsType.SwitchPlateLg,
-                    color = ChassisBase,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Spacer(Modifier.height(Dimens.Space2))
-
-            Text(
-                text = "WORKBENCH",
-                style = LogicLabsType.TechnicalXs,
-                color = TextTertiary,
-                modifier = Modifier.padding(horizontal = 6.dp)
-            )
-
-            // Navigation tabs
-            HomeTab.entries.forEach { tab ->
-                val isSelected = tab == selectedTab
-                val accent = if (isSelected) AmberCore else TextSecondary
+                // Primary CTA: New Circuit
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(Dimens.RadiusMd))
-                        .background(if (isSelected) AmberCore.copy(alpha = 0.14f) else SurfaceCard.copy(alpha = 0.35f))
-                        .border(
-                            width = if (isSelected) 1.dp else Dimens.Hairline,
-                            color = if (isSelected) AmberCore.copy(alpha = 0.65f) else SurfaceCardBorder.copy(alpha = 0.5f),
-                            shape = RoundedCornerShape(Dimens.RadiusMd)
-                        )
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            role = Role.Tab,
-                            onClick = {
-                                if (!isSelected) {
-                                    Haptics.tick()
-                                    onTabSelected(tab)
-                                }
-                            }
-                        )
-                        .padding(horizontal = 10.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .background(AmberCore)
+                        .desktopPointerHand()
+                        .clickable(role = Role.Button) {
+                            Haptics.thud()
+                            onNewCircuit()
+                        }
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
                 ) {
                     Icon(
-                        imageVector = tab.icon,
+                        imageVector = LogicIcons.Breadboard,
                         contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                        tint = accent
+                        tint = ChassisBase,
+                        modifier = Modifier.size(16.dp)
                     )
-                    Spacer(Modifier.width(10.dp))
+                    Spacer(Modifier.width(8.dp))
                     Text(
-                        text = tab.title,
+                        text = "NEW CIRCUIT",
                         style = LogicLabsType.SwitchPlateLg,
-                        color = if (isSelected) TextPrimary else TextSecondary,
-                        modifier = Modifier.weight(1f),
-                        maxLines = 1
-                    )
-                    Text(
-                        text = tab.shortcutHint,
-                        style = LogicLabsType.TechnicalXs,
-                        color = if (isSelected) AmberCore else TextTertiary,
-                        fontSize = 9.sp
+                        color = ChassisBase,
+                        fontWeight = FontWeight.Bold
                     )
                 }
-            }
 
-            Spacer(Modifier.weight(1f))
+                Spacer(Modifier.height(Dimens.Space2))
+
+                Text(
+                    text = "WORKBENCH",
+                    style = LogicLabsType.TechnicalXs,
+                    color = TextTertiary,
+                    modifier = Modifier.padding(horizontal = 6.dp)
+                )
+
+                // Navigation tabs
+                HomeTab.entries.forEach { tab ->
+                    val isSelected = tab == selectedTab
+                    val accent = if (isSelected) AmberCore else TextSecondary
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(Dimens.RadiusMd))
+                            .background(if (isSelected) AmberCore.copy(alpha = 0.14f) else SurfaceCard.copy(alpha = 0.35f))
+                            .border(
+                                width = if (isSelected) 1.dp else Dimens.Hairline,
+                                color = if (isSelected) AmberCore.copy(alpha = 0.65f) else SurfaceCardBorder.copy(alpha = 0.5f),
+                                shape = RoundedCornerShape(Dimens.RadiusMd)
+                            )
+                            .desktopPointerHand()
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                role = Role.Tab,
+                                onClick = {
+                                    if (!isSelected) {
+                                        Haptics.tick()
+                                        onTabSelected(tab)
+                                    }
+                                }
+                            )
+                            .padding(horizontal = 10.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = tab.icon,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                            tint = accent
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            text = tab.title,
+                            style = LogicLabsType.SwitchPlateLg,
+                            color = if (isSelected) TextPrimary else TextSecondary,
+                            modifier = Modifier.weight(1f),
+                            maxLines = 1
+                        )
+                        Text(
+                            text = tab.shortcutHint,
+                            style = LogicLabsType.TechnicalXs,
+                            color = if (isSelected) AmberCore else TextTertiary,
+                            fontSize = 9.sp
+                        )
+                    }
+                }
+            }
 
             // Controls & Shortcuts Guide button — always one click or F1 away
             Row(
@@ -244,6 +240,7 @@ fun DesktopHomeSidebar(
                     .clip(RoundedCornerShape(Dimens.RadiusMd))
                     .background(AccentCyan.copy(alpha = 0.10f))
                     .border(Dimens.Hairline, AccentCyan.copy(alpha = 0.45f), RoundedCornerShape(Dimens.RadiusMd))
+                    .desktopPointerHand()
                     .clickable(role = Role.Button) {
                         Haptics.tick()
                         onOpenControlsGuide()
@@ -299,7 +296,7 @@ fun DesktopHomeSidebar(
                     fontSize = 9.sp
                 )
                 Text(
-                    text = "v1.1.2 · ${com.logiclabs.app.desktop.DesktopPlatform.platformEditionLabel}",
+                    text = "v1.1.3 · ${com.logiclabs.app.desktop.DesktopPlatform.platformEditionLabel}",
                     style = LogicLabsType.TechnicalXs,
                     color = TextTertiary,
                     fontSize = 9.sp

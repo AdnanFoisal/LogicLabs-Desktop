@@ -46,6 +46,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.logiclabs.core.bridge.circuit.BreadboardCircuit
 import com.logiclabs.core.bridge.model.SimulationMode
+import com.logiclabs.core.designsystem.component.DesktopVerticalScrollbar
+import com.logiclabs.core.designsystem.component.desktopPointerHand
+import com.logiclabs.core.designsystem.component.keyboardPageScroll
 import com.logiclabs.core.designsystem.theme.AccentCyan
 import com.logiclabs.core.designsystem.theme.AmberCore
 import com.logiclabs.core.designsystem.theme.ChassisSilkscreen
@@ -217,133 +220,151 @@ fun TrainerConsoleDock(
                 }
             }
 
-            // Scrollable Rack Body
-            Column(
+            // Scrollable Rack Body with visible hardware-themed desktop scrollbar
+            val dockScrollState = rememberScrollState()
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = Dimens.Space3, vertical = Dimens.Space2),
-                verticalArrangement = Arrangement.spacedBy(Dimens.Space3)
+                    .keyboardPageScroll(dockScrollState)
             ) {
-                if (selectedTab == 0 || selectedTab == 1) {
-                    // Power + Pulsers
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(Dimens.Space3),
-                        verticalAlignment = Alignment.Top
-                    ) {
-                        SectionBlock(label = "Power [P]", modifier = Modifier.weight(0.95f)) {
-                            MasterPowerRocker(
-                                isOn = snapshot.masterPower,
-                                onToggle = { on -> commit { circuit.masterPower = on } },
-                            )
-                        }
-                        SectionBlock(label = "Pulsers [Q / E]", modifier = Modifier.weight(1.25f)) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(Dimens.Space2)) {
-                                MomentaryPulser(
-                                    label = "PLS A (Q)",
-                                    isPressed = snapshot.pulserA,
-                                    onPressChanged = { p -> commit { circuit.pulserAPressed = p } },
-                                )
-                                MomentaryPulser(
-                                    label = "PLS B (E)",
-                                    isPressed = snapshot.pulserB,
-                                    onPressChanged = { p -> commit { circuit.pulserBPressed = p } },
-                                )
-                            }
-                        }
-                    }
-
-                    // Logic Indicators L7..L0
-                    SectionBlock(label = "Logic Indicators (L7..L0)") {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .recessedWell(fill = SwitchWell)
-                                .padding(vertical = Dimens.Space1),
-                            horizontalArrangement = Arrangement.spacedBy(0.dp),
-                        ) {
-                            for (i in 7 downTo 0) {
-                                LedLens(
-                                    isOn = snapshot.leds[i],
-                                    dutyCycle = snapshot.ledDuty[i],
-                                    label = "L$i",
-                                    modifier = Modifier.weight(1f),
-                                )
-                            }
-                        }
-                    }
-
-                    // Data Switches SW7..SW0 with 1..8 keyboard hints
-                    SectionBlock(label = "Data Switches (SW7..SW0 · Keys 8..1)") {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .recessedWell(fill = SwitchWell)
-                                .padding(vertical = Dimens.Space2),
-                            horizontalArrangement = Arrangement.spacedBy(0.dp),
-                        ) {
-                            for (i in 7 downTo 0) {
-                                RockerSwitch(
-                                    isOn = snapshot.switches[i],
-                                    label = "SW$i",
-                                    onToggle = { on -> commit { circuit.switches[i] = on } },
-                                    modifier = Modifier.weight(1f),
-                                )
-                            }
-                        }
-                    }
-                }
-
-                if (selectedTab == 0 || selectedTab == 2) {
-                    // Clock + Single Step + 7-Segment Displays
-                    SectionBlock(label = "Clock Generator [K: Run · .: Step]") {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(dockScrollState)
+                        .padding(start = Dimens.Space3, end = Dimens.Space4, top = Dimens.Space2, bottom = Dimens.Space3),
+                    verticalArrangement = Arrangement.spacedBy(Dimens.Space2)
+                ) {
+                    if (selectedTab == 0 || selectedTab == 1) {
+                        // Power + Pulsers
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            horizontalArrangement = Arrangement.spacedBy(Dimens.Space3),
+                            verticalAlignment = Alignment.Top
                         ) {
-                            ClockDial(
-                                frequencyHz = snapshot.clockFrequencyHz,
-                                isRunning = snapshot.clockRunning,
-                                clockState = snapshot.clockState,
-                                onFrequencyChange = { hz -> commit { circuit.clockFrequencyHz = hz } },
-                                onRunningChange = { run -> commit { circuit.clockRunning = run } },
-                            )
-                            Box(
+                            SectionBlock(label = "Power [P]", modifier = Modifier.weight(0.95f)) {
+                                MasterPowerRocker(
+                                    isOn = snapshot.masterPower,
+                                    onToggle = { on -> commit { circuit.masterPower = on } },
+                                )
+                            }
+                            SectionBlock(label = "Pulsers [Q / E]", modifier = Modifier.weight(1.25f)) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(Dimens.Space2)) {
+                                    MomentaryPulser(
+                                        label = "PLS A (Q)",
+                                        isPressed = snapshot.pulserA,
+                                        onPressChanged = { p -> commit { circuit.pulserAPressed = p } },
+                                    )
+                                    MomentaryPulser(
+                                        label = "PLS B (E)",
+                                        isPressed = snapshot.pulserB,
+                                        onPressChanged = { p -> commit { circuit.pulserBPressed = p } },
+                                    )
+                                }
+                            }
+                        }
+
+                        // Logic Indicators L7..L0
+                        SectionBlock(label = "Logic Indicators (L7..L0)") {
+                            Row(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(Dimens.RadiusSm))
-                                    .background(SurfaceCard)
-                                    .border(Dimens.Hairline, AccentCyan.copy(alpha = 0.6f), RoundedCornerShape(Dimens.RadiusSm))
-                                    .clickable(role = Role.Button) {
-                                        PanelHaptics.tick()
-                                        commit {
-                                            circuit.clockRunning = false
-                                            circuit.clockState = !circuit.clockState
-                                        }
-                                    }
-                                    .padding(horizontal = 10.dp, vertical = 8.dp),
-                                contentAlignment = Alignment.Center
+                                    .fillMaxWidth()
+                                    .recessedWell(fill = SwitchWell)
+                                    .padding(vertical = Dimens.Space1),
+                                horizontalArrangement = Arrangement.spacedBy(0.dp),
                             ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text("STEP", style = LogicLabsType.SwitchPlate, color = AccentCyan)
-                                    Text("[.]", style = LogicLabsType.TechnicalXs, color = TextTertiary)
+                                for (i in 7 downTo 0) {
+                                    LedLens(
+                                        isOn = snapshot.leds[i],
+                                        dutyCycle = snapshot.ledDuty[i],
+                                        label = "L$i",
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                }
+                            }
+                        }
+
+                        // Data Switches SW7..SW0 with explicit [8]..[1] keycap hints beneath each switch
+                        SectionBlock(label = "Data Switches (SW7..SW0 · Keys 8..1)") {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .recessedWell(fill = SwitchWell)
+                                    .padding(top = Dimens.Space1, bottom = Dimens.Space1),
+                                horizontalArrangement = Arrangement.spacedBy(0.dp),
+                            ) {
+                                for (i in 7 downTo 0) {
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        RockerSwitch(
+                                            isOn = snapshot.switches[i],
+                                            label = "SW$i",
+                                            onToggle = { on -> commit { circuit.switches[i] = on } },
+                                            modifier = Modifier.fillMaxWidth().desktopPointerHand(),
+                                        )
+                                        Text(
+                                            text = "[${i + 1}]",
+                                            style = LogicLabsType.TechnicalXs,
+                                            color = if (snapshot.switches[i]) AccentCyan else TextTertiary.copy(alpha = 0.72f),
+                                            maxLines = 1
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
 
-                    SectionBlock(label = "7-Segment BCD Displays") {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(Dimens.Space3, Alignment.CenterHorizontally)
-                        ) {
-                            SevenSegModule(value = snapshot.seg[0], label = "HEX A")
-                            SevenSegModule(value = snapshot.seg[1], label = "HEX B")
+                    if (selectedTab == 0 || selectedTab == 2) {
+                        // Clock + Single Step + 7-Segment Displays
+                        SectionBlock(label = "Clock Generator [K: Run · .: Step]") {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                ClockDial(
+                                    frequencyHz = snapshot.clockFrequencyHz,
+                                    isRunning = snapshot.clockRunning,
+                                    clockState = snapshot.clockState,
+                                    onFrequencyChange = { hz -> commit { circuit.clockFrequencyHz = hz } },
+                                    onRunningChange = { run -> commit { circuit.clockRunning = run } },
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(Dimens.RadiusSm))
+                                        .background(SurfaceCard)
+                                        .border(Dimens.Hairline, AccentCyan.copy(alpha = 0.6f), RoundedCornerShape(Dimens.RadiusSm))
+                                        .desktopPointerHand()
+                                        .clickable(role = Role.Button) {
+                                            PanelHaptics.tick()
+                                            commit {
+                                                circuit.clockRunning = false
+                                                circuit.clockState = !circuit.clockState
+                                            }
+                                        }
+                                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text("STEP", style = LogicLabsType.SwitchPlate, color = AccentCyan)
+                                        Text("[.]", style = LogicLabsType.TechnicalXs, color = TextTertiary)
+                                    }
+                                }
+                            }
+                        }
+
+                        SectionBlock(label = "7-Segment BCD Displays") {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(Dimens.Space3, Alignment.CenterHorizontally)
+                            ) {
+                                SevenSegModule(value = snapshot.seg[0], label = "HEX A")
+                                SevenSegModule(value = snapshot.seg[1], label = "HEX B")
+                            }
                         }
                     }
-                }
 
                 if (selectedTab == 0 || selectedTab == 3) {
                     // Diagnostics & Burned IC recovery
@@ -423,6 +444,14 @@ fun TrainerConsoleDock(
                         }
                     }
                 }
+                }
+                DesktopVerticalScrollbar(
+                    scrollState = dockScrollState,
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .fillMaxHeight()
+                        .padding(vertical = Dimens.Space2, horizontal = 3.dp)
+                )
             }
         }
     }

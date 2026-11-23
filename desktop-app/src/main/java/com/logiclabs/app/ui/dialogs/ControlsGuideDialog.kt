@@ -5,12 +5,15 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -19,10 +22,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.logiclabs.core.designsystem.component.DesktopModalDialog
+import com.logiclabs.core.designsystem.component.DesktopVerticalScrollbar
 import com.logiclabs.core.designsystem.component.LogicIcons
 import com.logiclabs.core.designsystem.component.SheetScaffold
+import com.logiclabs.core.designsystem.component.keyboardPageScroll
 import com.logiclabs.core.designsystem.theme.AccentCyan
 import com.logiclabs.core.designsystem.theme.AmberCore
 import com.logiclabs.core.designsystem.theme.ChassisDivider
@@ -39,48 +45,45 @@ private data class ControlRow(val keys: String, val action: String)
 
 private val MouseControls = listOf(
     ControlRow("Scroll Wheel", "Zoom in / out smoothly toward mouse pointer"),
-    ControlRow("Middle-Drag / Space+Drag", "Pan the breadboard in any mode"),
-    ControlRow("Left-Drag (Empty Board)", "Pan the breadboard in Roam / Select mode"),
-    ControlRow("Left-Click / Drag (Wire)", "Click hole A then hole B, or click-drag to connect"),
-    ControlRow("Right-Click", "Context menu on chip/wire/board — or cancel armed wire"),
-    ControlRow("Drag IC / Wire Endpoint", "Move placed IC across columns/trenches, or re-terminate wire"),
+    ControlRow("Middle / Space+Drag", "Pan the breadboard in any mode"),
+    ControlRow("Left-Drag Board", "Pan the breadboard in Roam / Select mode"),
+    ControlRow("Click / Drag (Wire)", "Click hole A then hole B, or click-drag to connect"),
+    ControlRow("Right-Click", "Context menu on chip/wire/board — or cancel wire"),
+    ControlRow("Drag IC / Endpoint", "Move placed IC across columns, or re-terminate wire"),
     ControlRow("Double-Click IC", "Open live IC Pinout & Truth Table Inspector"),
-    ControlRow("Hold Alt (or press L)", "Show 2.2x optical magnifying loupe at cursor")
+    ControlRow("Hold Alt (or L)", "Show 2.2x optical magnifying loupe at cursor")
 )
 
 private val BreadboardHotkeys = listOf(
-    ControlRow("W", "Toggle Wire Draw mode"),
-    ControlRow("V", "Roam / Pan & Select mode"),
-    ControlRow("S", "Wire Select mode"),
+    ControlRow("W / V / S", "Switch Wire Draw / Roam / Wire Select modes"),
     ControlRow("Esc", "Cancel armed wire, clear selection, or close dialog"),
     ControlRow("R", "Rotate selected IC 180°"),
-    ControlRow("M", "Toggle Catenary / Manhattan routing on selected wire"),
-    ControlRow("Arrow Keys", "Nudge selected IC (or pan board when nothing selected)"),
+    ControlRow("M", "Toggle Catenary / Manhattan routing on wire"),
+    ControlRow("Arrow Keys", "Nudge selected IC (or pan board when idle)"),
     ControlRow("Delete / Backspace", "Delete selected wire or IC"),
     ControlRow("Ctrl + Z / Ctrl + Y", "Multi-step Undo / Redo"),
     ControlRow("F  or  0", "Fit circuit / breadboard to screen"),
-    ControlRow("+  /  -", "Zoom in / out"),
-    ControlRow("L", "Toggle 2.2x optical magnifying loupe")
+    ControlRow("+  /  -  /  L", "Zoom in / Zoom out / Toggle 2.2x loupe")
 )
 
 private val ConsoleHotkeys = listOf(
-    ControlRow("1  –  8", "Toggle Data Switches SW0 – SW7"),
+    ControlRow("1 .. 8", "Toggle Data Switches SW0 – SW7"),
     ControlRow("Q  /  E", "Momentary Pulser A / Pulser B (hold & release)"),
     ControlRow("P", "Toggle Master +5V Power Supply"),
     ControlRow("K", "Start / Pause Stepped Clock Generator"),
-    ControlRow(".", "Single-Step Clock one half-cycle")
+    ControlRow(".", "Single-Step Clock one half-cycle"),
+    ControlRow("Shift + Wheel", "Step Clock frequency on RATE knob (or click - / +)")
 )
 
 private val WorkspaceHotkeys = listOf(
-    ControlRow("C", "Open 74xx IC Chip Catalog (type to filter, Arrows + Enter)"),
-    ControlRow("B", "Open Guided Lab Coursework Catalog (49 experiments)"),
+    ControlRow("C", "Open 74xx IC Chip Catalog (type, ↑/↓ + Enter)"),
+    ControlRow("B", "Open Guided Lab Coursework Catalog (49 builds)"),
     ControlRow("O", "Open Dual-Channel CRT Oscilloscope"),
     ControlRow("D", "Toggle Live Gate-Level Boolean Schematic"),
     ControlRow("F5", "Run Exhaustive 2^N Truth-Table Verification"),
-    ControlRow("Ctrl + S", "Save Project"),
-    ControlRow("Ctrl + O / Ctrl + E", "Import / Export Project (.json)"),
-    ControlRow("Ctrl + 1 .. 4", "Switch Home tabs (Projects, Coursework, ICs, Settings)"),
-    ControlRow("Tab / Arrows / Enter", "Navigate and select options across catalogs, menus & dialogs"),
+    ControlRow("Ctrl + S / O / E", "Save / Import / Export Project (.json)"),
+    ControlRow("Ctrl + 1 .. 4", "Switch Home tabs (Projects, Labs, ICs, Settings)"),
+    ControlRow("PgUp / PgDn", "Scroll pages, catalogs, settings, and console"),
     ControlRow("F1  or  ?", "Open this Controls & Shortcuts Guide")
 )
 
@@ -90,9 +93,11 @@ private val WorkspaceHotkeys = listOf(
  */
 @Composable
 fun ControlsGuideDialog(onDismiss: () -> Unit) {
+    val scrollState = rememberScrollState()
+
     DesktopModalDialog(
         onDismissRequest = onDismiss,
-        maxWidth = 960.dp,
+        maxWidth = 980.dp,
         maxHeight = 720.dp
     ) {
         SheetScaffold(
@@ -101,52 +106,71 @@ fun ControlsGuideDialog(onDismiss: () -> Unit) {
             titleIcon = LogicIcons.Info,
             onDismiss = onDismiss
         ) {
-            Column(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(Dimens.Space2)
+                    .weight(1f, fill = false)
+                    .keyboardPageScroll(scrollState)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(Dimens.Space2)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(scrollState)
+                        .padding(end = Dimens.Space3),
+                    verticalArrangement = Arrangement.spacedBy(Dimens.Space2)
                 ) {
-                    ControlSectionCard(
-                        title = "MOUSE POINTER",
-                        accent = AccentCyan,
-                        rows = MouseControls,
-                        modifier = Modifier.weight(1f)
-                    )
-                    ControlSectionCard(
-                        title = "BREADBOARD HOTKEYS",
-                        accent = PhosphorCore,
-                        rows = BreadboardHotkeys,
-                        modifier = Modifier.weight(1f)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(IntrinsicSize.Min),
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.Space2)
+                    ) {
+                        ControlSectionCard(
+                            title = "MOUSE POINTER",
+                            accent = AccentCyan,
+                            rows = MouseControls,
+                            modifier = Modifier.weight(1f).fillMaxHeight()
+                        )
+                        ControlSectionCard(
+                            title = "BREADBOARD HOTKEYS",
+                            accent = PhosphorCore,
+                            rows = BreadboardHotkeys,
+                            modifier = Modifier.weight(1f).fillMaxHeight()
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(IntrinsicSize.Min),
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.Space2)
+                    ) {
+                        ControlSectionCard(
+                            title = "TRAINER CONSOLE KEYS",
+                            accent = AmberCore,
+                            rows = ConsoleHotkeys,
+                            modifier = Modifier.weight(1f).fillMaxHeight()
+                        )
+                        ControlSectionCard(
+                            title = "TOOLS, FILES & KEYBOARD SELECTION",
+                            accent = AccentCyan,
+                            rows = WorkspaceHotkeys,
+                            modifier = Modifier.weight(1f).fillMaxHeight()
+                        )
+                    }
+
+                    Text(
+                        text = "Tip: Press C to open the Chip Catalog, type a part like '7408', use Up/Down arrows, and press Enter to place it immediately.",
+                        style = LogicLabsType.BodySm,
+                        color = TextSecondary
                     )
                 }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(Dimens.Space2)
-                ) {
-                    ControlSectionCard(
-                        title = "TRAINER CONSOLE KEYS",
-                        accent = AmberCore,
-                        rows = ConsoleHotkeys,
-                        modifier = Modifier.weight(1f)
-                    )
-                    ControlSectionCard(
-                        title = "TOOLS, FILES & KEYBOARD SELECTION",
-                        accent = AccentCyan,
-                        rows = WorkspaceHotkeys,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                Text(
-                    text = "Tip: Press C to open the Chip Catalog, type a part like '7408', use Up/Down arrows, and press Enter to place it immediately.",
-                    style = LogicLabsType.BodySm,
-                    color = TextSecondary
+                DesktopVerticalScrollbar(
+                    scrollState = scrollState,
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .fillMaxHeight()
                 )
             }
         }
@@ -166,7 +190,7 @@ private fun ControlSectionCard(
             .background(SurfaceCard)
             .border(Dimens.Hairline, SurfaceCardBorder, RoundedCornerShape(Dimens.RadiusMd))
             .padding(horizontal = Dimens.Space3, vertical = Dimens.Space2),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        verticalArrangement = Arrangement.spacedBy(5.dp)
     ) {
         Text(
             text = title,
@@ -182,20 +206,23 @@ private fun ControlSectionCard(
         rows.forEach { row ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
                     modifier = Modifier
+                        .widthIn(min = 128.dp)
                         .clip(RoundedCornerShape(Dimens.RadiusSm))
                         .background(SurfaceRaised)
                         .border(Dimens.Hairline, accent.copy(alpha = 0.45f), RoundedCornerShape(Dimens.RadiusSm))
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = row.keys,
                         style = LogicLabsType.TechnicalXs,
-                        color = accent
+                        color = accent,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1
                     )
                 }
                 Spacer(Modifier.width(Dimens.Space2))

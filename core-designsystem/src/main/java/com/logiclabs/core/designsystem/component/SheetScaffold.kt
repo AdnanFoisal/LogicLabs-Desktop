@@ -3,10 +3,12 @@ package com.logiclabs.core.designsystem.component
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -91,15 +93,17 @@ fun SheetScaffold(
 
             if (onDismiss != null) {
                 Spacer(Modifier.width(Dimens.Space2))
-                IconButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        imageVector = LogicIcons.Close,
-                        contentDescription = "Close (Esc)",
-                        tint = TextSecondary
-                    )
+                DesktopTooltip(text = "Close", shortcut = "Esc") {
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.size(36.dp).desktopPointerHand()
+                    ) {
+                        Icon(
+                            imageVector = LogicIcons.Close,
+                            contentDescription = "Close (Esc)",
+                            tint = TextSecondary
+                        )
+                    }
                 }
             }
         }
@@ -122,7 +126,9 @@ fun SheetScaffold(
 
 /**
  * Centered desktop modal dialog container replacing Android's ModalBottomSheet.
- * Supports Escape-key and click-outside dismissal, bounded cleanly for laptop & PC monitors.
+ *
+ * Responsively caps width and height against the actual viewport so laptop displays at
+ * 1366x768 @ 125% DPI never push modal footers or scrollbars off-screen.
  */
 @Composable
 fun DesktopModalDialog(
@@ -139,16 +145,26 @@ fun DesktopModalDialog(
             usePlatformDefaultWidth = false
         )
     ) {
-        Box(
+        BoxWithConstraints(
             modifier = Modifier
-                .padding(Dimens.Space4)
-                .widthIn(min = 420.dp, max = maxWidth)
-                .heightIn(max = maxHeight)
-                .clip(RoundedCornerShape(Dimens.RadiusXl))
-                .background(ChassisBase)
-                .border(1.dp, SurfaceCardBorder, RoundedCornerShape(Dimens.RadiusXl))
+                .fillMaxSize()
+                .padding(horizontal = Dimens.Space4, vertical = Dimens.Space3),
+            contentAlignment = Alignment.Center
         ) {
-            content()
+            val boundMaxW = minOf(maxWidth, this.maxWidth).coerceAtLeast(320.dp)
+            val boundMinW = minOf(420.dp, boundMaxW)
+            val boundMaxH = minOf(maxHeight, this.maxHeight * 0.94f).coerceAtLeast(300.dp)
+
+            Box(
+                modifier = Modifier
+                    .widthIn(min = boundMinW, max = boundMaxW)
+                    .heightIn(max = boundMaxH)
+                    .clip(RoundedCornerShape(Dimens.RadiusXl))
+                    .background(ChassisBase)
+                    .border(1.dp, SurfaceCardBorder, RoundedCornerShape(Dimens.RadiusXl))
+            ) {
+                content()
+            }
         }
     }
 }

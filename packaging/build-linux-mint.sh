@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-VERSION="1.1.2"
+VERSION="1.1.3"
 OUT_DIR="/home/antigravity/LogicLabs-Linux"
 PORTABLE_NAME="LogicLabs-Linux-Mint-Portable"
 PORTABLE_DIR="$OUT_DIR/$PORTABLE_NAME"

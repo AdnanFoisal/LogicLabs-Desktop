@@ -18,12 +18,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Logic Labs (GPL-3.0)"
             VALUE "FileDescription", "Logic Labs — IDL-800A Digital Electronics Workstation"
-            VALUE "FileVersion", "1.1.2.0"
+            VALUE "FileVersion", "1.1.3.0"
             VALUE "InternalName", "LogicLabs"
             VALUE "LegalCopyright", "GPL-3.0-only · Original by Adnan Foisal (CUET CSE)"
             VALUE "OriginalFilename", "LogicLabs.exe"
             VALUE "ProductName", "Logic Labs"
-            VALUE "ProductVersion", "1.1.2"
+            VALUE "ProductVersion", "1.1.3"
         END
     END
     BLOCK "VarFileInfo"

@@ -25,8 +25,10 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.logiclabs.core.bridge.circuit.BreadboardCircuit
 import com.logiclabs.core.bridge.model.ElectricalLevel
+import com.logiclabs.core.designsystem.component.DesktopTooltip
 import com.logiclabs.core.designsystem.component.GlassSurface
 import com.logiclabs.core.designsystem.component.LogicIcons
+import com.logiclabs.core.designsystem.component.desktopPointerHand
 import com.logiclabs.core.designsystem.theme.AccentCyan
 import com.logiclabs.core.designsystem.theme.AmberCore
 import com.logiclabs.core.designsystem.theme.Dimens
@@ -66,21 +68,29 @@ internal fun BoxScope.BreadboardControls(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            ZoomPillButton(icon = LogicIcons.ZoomIn, contentDescription = "Zoom in (+)") {
-                state.nudgeZoom(1.25f)
+            DesktopTooltip(text = "Zoom out", shortcut = "-") {
+                ZoomPillButton(label = "−", contentDescription = "Zoom out (-)") {
+                    state.nudgeZoom(1f / 1.25f)
+                }
             }
-            ZoomPillButton(icon = LogicIcons.ZoomOut, contentDescription = "Zoom out (-)") {
-                state.nudgeZoom(1f / 1.25f)
+            DesktopTooltip(text = "Zoom in", shortcut = "+") {
+                ZoomPillButton(label = "+", contentDescription = "Zoom in (+)") {
+                    state.nudgeZoom(1.25f)
+                }
             }
-            ZoomPillButton("FIT", isLabel = true) { state.applyFit(mapper, circuit) }
-            ZoomPillButton(
-                label = "2.2x",
-                isLabel = true,
-                highlighted = loupeOn
-            ) {
-                val next = !state.loupeEnabled.value
-                state.loupeEnabled.value = next
-                if (!next) state.hideLoupe()
+            DesktopTooltip(text = "Fit circuit to screen", shortcut = "F") {
+                ZoomPillButton("FIT", isLabel = true) { state.applyFit(mapper, circuit) }
+            }
+            DesktopTooltip(text = "Toggle 2.2x optical loupe", shortcut = "L") {
+                ZoomPillButton(
+                    label = "2.2x",
+                    isLabel = true,
+                    highlighted = loupeOn
+                ) {
+                    val next = !state.loupeEnabled.value
+                    state.loupeEnabled.value = next
+                    if (!next) state.hideLoupe()
+                }
             }
         }
     }
@@ -98,9 +108,10 @@ private fun ZoomPillButton(
     val interaction = remember { MutableInteractionSource() }
     Box(
         modifier = Modifier
-            .size(if (isLabel) 40.dp else 30.dp, 28.dp)
+            .size(if (isLabel) 42.dp else 30.dp, 28.dp)
             .clip(RoundedCornerShape(Dimens.RadiusPill))
-            .background(if (highlighted) AccentCyan.copy(alpha = 0.25f) else SurfaceCard.copy(alpha = 0.7f))
+            .background(if (highlighted) AccentCyan.copy(alpha = 0.25f) else SurfaceCard.copy(alpha = 0.78f))
+            .desktopPointerHand()
             .clickable(
                 interactionSource = interaction,
                 indication = null,
@@ -119,7 +130,7 @@ private fun ZoomPillButton(
         } else {
             Text(
                 text = label.orEmpty(),
-                style = if (isLabel) LogicLabsType.SwitchPlate else LogicLabsType.TitleSm,
+                style = if (isLabel) LogicLabsType.SwitchPlate else LogicLabsType.TitleMd,
                 color = if (highlighted) AccentCyan else if (isLabel) TextPrimary else AccentCyan
             )
         }
