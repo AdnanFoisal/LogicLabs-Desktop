@@ -5,7 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 VERSION="1.1.3"
-OUT_DIR="/home/antigravity/LogicLabs-Linux"
+OUT_DIR="${LOGICLABS_LINUX_OUT_DIR:-$ROOT_DIR/dist/linux}"
 PORTABLE_NAME="LogicLabs-Linux-Mint-Portable"
 PORTABLE_DIR="$OUT_DIR/$PORTABLE_NAME"
 DEB_STAGE="$ROOT_DIR/dist-cache/deb-stage"
